@@ -1,0 +1,32 @@
+{
+  "$schema": "../flow.schema.json",
+  "format": "flow-animator/1",
+  "title": "Order submission",
+  "description": "A client submits an order. The service stores it and hands the slow work to a background worker.",
+  "groups": [
+    { "id": "client", "label": "Client", "color": "gray" },
+    { "id": "sync", "label": "Request path", "color": "purple" },
+    { "id": "async", "label": "Background processing", "color": "teal" },
+    { "id": "external", "label": "External", "color": "coral" }
+  ],
+  "nodes": [
+    { "id": "client", "label": "Client", "subtitle": "WPF app", "group": "client" },
+    { "id": "api", "label": "API gateway", "subtitle": "Auth, routing", "group": "sync" },
+    { "id": "orders", "label": "Order service", "subtitle": "Business logic", "group": "sync" },
+    { "id": "db", "label": "Database", "subtitle": "Orders table", "shape": "database", "group": "client", "col": 3, "row": 0 },
+    { "id": "queue", "label": "Message queue", "subtitle": "OrderCreated events", "shape": "queue", "group": "async", "col": 3, "row": 1 },
+    { "id": "worker", "label": "Worker", "subtitle": "Background jobs", "group": "async", "col": 4, "row": 1 },
+    { "id": "mail", "label": "Email provider", "subtitle": "SMTP relay", "group": "external", "col": 4, "row": 0 }
+  ],
+  "steps": [
+    { "from": "client", "to": "api", "label": "Submit order", "detail": "The user presses Submit; the client sends the order over HTTPS.", "payload": "POST /orders" },
+    { "from": "api", "to": "orders", "label": "Forward request", "detail": "The gateway validates the token and routes the call to the order service." },
+    { "from": "orders", "to": "db", "label": "Persist order", "detail": "The order is saved with status 'received'.", "payload": "INSERT INTO orders" },
+    { "from": "orders", "to": "queue", "label": "Publish event", "kind": "async", "detail": "Slow work is deferred: an OrderCreated event is queued.", "payload": "OrderCreated { id }" },
+    { "from": "orders", "to": "api", "label": "Return result", "kind": "response", "detail": "The service answers without waiting for the worker.", "payload": "201 Created" },
+    { "from": "api", "to": "client", "label": "Confirm to user", "kind": "response", "detail": "The client shows the confirmation." },
+    { "from": "queue", "to": "worker", "label": "Deliver event", "kind": "async", "detail": "The worker picks up the event from the queue." },
+    { "from": "worker", "to": "db", "label": "Update status", "detail": "Status changes to 'processing'.", "payload": "UPDATE orders" },
+    { "from": "worker", "to": "mail", "label": "Send confirmation email", "kind": "async", "together": true, "detail": "Runs in parallel with the status update." }
+  ]
+}
