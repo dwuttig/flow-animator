@@ -16,6 +16,10 @@ docker compose up --build   # viewer at http://localhost:8080
 
 Put your own `*.flow.json` files in `./flows`; they are served at `/flows/<name>.flow.json`.
 
+## Editor mode
+
+Click **Edit** in the viewer to change the flow in the browser: title, groups, nodes and steps, with undo/redo. Every change is validated before it is shown; invalid changes are rejected. Use **Download** or **Copy JSON** to keep the result (the viewer cannot write to your `./flows` folder; agents can, via MCP). No coordinates to set: layout stays automatic. Script access: `FlowAnimator.edit("add_node", {id:"x", label:"X"})`.
+
 ## MCP server (create and edit flows)
 
 `mcp-server.js` lets MCP-capable agents create, read, validate and edit flow files through tools instead of rewriting JSON. Every change is validated with `flow-core.js`; an invalid change is rejected and the file stays untouched. Positions are automatic, so tools never take coordinates.
@@ -247,6 +251,8 @@ Domain-Driven Design with vertical slices. Bounded contexts: Flow Modeling (core
 | `index.html` | The viewer. Open it in a browser. |
 | `flow-core.js` | Parsing, validation, auto-layout (used by the viewer and the Node tools). |
 | `mcp-server.js`, `flow-store.js` | MCP server (stdio and HTTP) and its file/edit logic. |
+| `src/flow-library/apply-edit/` | Pure Edit operations shared by the MCP server and editor mode. |
+| `src/playback/edit-flow/` | Editor mode UI (browser). |
 | `validate.js` | Command-line validator for agents and CI. |
 | `build-standalone.js` | Bundles viewer + one flow into a single HTML file. |
 | `flow.schema.json` | JSON Schema for editor autocomplete. `validate.js` is the stricter source of truth. |
