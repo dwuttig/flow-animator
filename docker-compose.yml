@@ -1,6 +1,8 @@
 services:
   viewer:
-    build: .
+    build:
+      context: .
+      target: viewer
     image: flow-animator:latest
     ports:
       - "8080:8080"
@@ -9,5 +11,19 @@ services:
       - ./flows:/usr/share/nginx/html/flows
     restart: unless-stopped
 
-  # Placeholder: the MCP server (create/edit flows) will be added here and share
-  # the ./flows volume with the viewer. See docs/features/docker-deployment.md.
+  # MCP server: lets agents create/edit flows in the same ./flows folder.
+  # Endpoint: http://localhost:8081/mcp  (Streamable HTTP, POST only)
+  mcp:
+    build:
+      context: .
+      target: mcp
+    image: flow-animator-mcp:latest
+    ports:
+      # Bound to localhost only; the server edits files, so don't expose it without a token.
+      - "127.0.0.1:8081:8081"
+    environment:
+      # Set a token to require "Authorization: Bearer <token>".
+      MCP_TOKEN: ${MCP_TOKEN:-}
+    volumes:
+      - ./flows:/flows
+    restart: unless-stopped

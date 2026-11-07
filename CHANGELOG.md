@@ -10,6 +10,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Added
 - Docker deployment: `Dockerfile`, `docker-compose.yml`, nginx config; `./flows` volume for user flows (see `docs/features/docker-deployment.md`).
+- MCP server (`mcp-server.js`, stdio and HTTP) with tools to create, read, validate and edit flow files; `mcp` service in `docker-compose.yml` (see `docs/features/mcp-server.md`).
 - Claude Code subagents in `.claude/agents/`: software-engineer, architect, deployment, tester.
 - `CHANGELOG.md` to track changes.
 - `docs/features/` for feature specs and `docs/plans/` for implementation plans, each with a template.

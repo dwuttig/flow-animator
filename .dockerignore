@@ -1,6 +1,9 @@
 *
 !index.html
 !flow-core.js
+!flow-store.js
+!mcp-server.js
+!README.md
 !flow.schema.json
 !examples/
 !examples/**
