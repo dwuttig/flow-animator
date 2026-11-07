@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "flow-animator/1",
+  "title": "flow-animator file (format flow-animator/1)",
+  "description": "Architecture components (nodes) and an ordered list of interactions (steps) to animate. Semantics and extra checks live in README.md and flow-core.js; use `node validate.js <file>` as the source of truth.",
+  "type": "object",
+  "required": ["nodes", "steps"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "format": { "const": "flow-animator/1" },
+    "title": { "type": "string", "minLength": 1 },
+    "description": { "type": "string" },
+    "layout": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "direction": { "enum": ["LR", "TB"], "default": "LR" }
+      }
+    },
+    "groups": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "label": { "type": "string" },
+          "color": { "enum": ["gray", "purple", "teal", "coral", "pink", "blue", "green", "amber", "red"] }
+        }
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "label"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$" },
+          "label": { "type": "string", "minLength": 1, "maxLength": 28 },
+          "subtitle": { "type": "string", "maxLength": 36 },
+          "group": { "type": "string", "minLength": 1 },
+          "shape": { "enum": ["box", "database", "queue"], "default": "box" },
+          "col": { "type": "integer", "minimum": 0 },
+          "row": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["from", "to", "label"],
+        "additionalProperties": false,
+        "properties": {
+          "from": { "type": "string", "description": "id of a node" },
+          "to": { "type": "string", "description": "id of a node" },
+          "label": { "type": "string", "minLength": 1 },
+          "detail": { "type": "string" },
+          "payload": { "type": "string" },
+          "kind": { "enum": ["sync", "async", "response", "event"], "default": "sync" },
+          "together": { "type": "boolean", "default": false }
+        }
+      }
+    }
+  }
+}
