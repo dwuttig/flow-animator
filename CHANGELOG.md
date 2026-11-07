@@ -10,9 +10,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Docker: `/` returned 404 because the nginx `try_files` did not fall back to `index.html`.
 
 ### Changed
+- `build-standalone.js` now shares its bundling code with the viewer's export (`src/playback/export-flow/`) and works with CRLF checkouts. The `pick-flow` slice is replaced by `flow-menu`.
 - Project now follows Domain-Driven Design: bounded contexts and vertical slices documented in `docs/architecture.md` and `docs/ubiquitous-language.md`; agents, spec and plan templates updated. Code restructuring is proposed in `docs/features/ddd-restructure.md`.
 
 ### Added
+- Header **Flow menu** (replaces Open file / Paste JSON / Built-in example and the stored-flows dropdown): stored flows, Open file, Paste JSON, Built-in example, New flow, Share flow (copies a `?flow=` link), Delete flow, Export flow (download JSON or a standalone HTML built in the browser) and an MCP config dialog with copy-ready JSON and a `claude mcp add` command for stdio via Docker and HTTP on :8081 with an optional token (see `docs/features/flow-menu.md`).
 - Flow storage and loading: stored flows get a Revision (content hash); HTTP Flow API (`GET/PUT/DELETE /api/flows[/name]`, ETag, `If-Match`, `If-None-Match: *`) on the MCP server; `expected_revision` and `read_flow` `with_revision` in the MCP tools; viewer flow picker, `?flow=name` links (also with `watch`), and Save / Save as / Reload in editor mode with conflict detection; nginx proxies `/api/` (see `docs/features/flow-storage.md`).
 - Editor mode in the viewer (**Edit** button): change title, Groups, Nodes and Steps with forms, live validation, undo/redo, download or copy the result. Edits live in the shared `src/flow-library/apply-edit/` module, now also used by the MCP server (see `docs/features/editor-mode.md`).
 - Docker deployment: `Dockerfile`, `docker-compose.yml`, nginx config; `./flows` volume for user flows (see `docs/features/docker-deployment.md`).

@@ -90,7 +90,26 @@ body.editing #app{max-width:1560px}
 .enum{padding:0}
 #editBtn[aria-pressed=true]{background:var(--card);border-color:var(--hot)}
 #note{margin:2px 0 0;font-size:12px;color:var(--text2);min-height:1em}
-#flowPick{font:inherit;font-size:13px;color:var(--text);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:3px 6px;max-width:260px}
+.menu{position:relative;display:inline-block}
+.menupop{position:absolute;right:0;top:calc(100% + 4px);z-index:20;min-width:260px;max-width:340px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:6px;box-shadow:0 6px 24px rgba(0,0,0,.18)}
+.menupop[hidden]{display:none}
+.menupop button{display:block;width:100%;text-align:left;border:0;border-radius:6px;padding:6px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.menupop button:disabled{opacity:.45;cursor:not-allowed}
+.menupop button.cur{background:var(--card);box-shadow:inset 3px 0 var(--hot)}
+.menupop .mh{font-size:11px;color:var(--text2);padding:4px 10px 2px;text-transform:uppercase;letter-spacing:.04em}
+.menupop .ms{height:1px;background:var(--line);margin:6px 0}
+.menupop .ml{max-height:180px;overflow-y:auto}
+#mcpDlg{max-width:640px;width:calc(100% - 32px);border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--text);padding:0}
+#mcpDlg::backdrop{background:rgba(0,0,0,.4)}
+.mcpbox{padding:16px 20px}
+.mcpbox h2{margin:0 0 4px;font-size:18px;font-weight:500}
+.mcpbox p{margin:4px 0 10px;color:var(--text2);font-size:13px}
+.mcptabs{display:flex;gap:6px;margin-bottom:10px}
+.mcptabs button[aria-pressed=true]{background:var(--card);border-color:var(--hot)}
+.mcprow{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--text2);margin-bottom:8px}
+.mcprow input{flex:1;font:inherit;font-size:13px;color:var(--text);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:3px 6px}
+.mcphead{display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:13px}
+.mcpbox pre{margin:4px 0 8px;padding:10px;background:var(--card);border-radius:8px;font:12px ui-monospace,Menlo,Consolas,monospace;overflow-x:auto;white-space:pre-wrap;word-break:break-all}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (prefers-reduced-motion:reduce){.edge,.body{transition:none}}
 </style>
@@ -106,10 +125,7 @@ body.editing #app{max-width:1560px}
       <p id="note" role="status" aria-live="polite"></p>
     </div>
     <div class="tools">
-      <span id="pickHost"></span>
-      <button id="openBtn" type="button">Open file…</button>
-      <button id="pasteBtn" type="button">Paste JSON…</button>
-      <button id="sampleBtn" type="button">Built-in example</button>
+      <span id="menuHost"></span>
       <button id="editBtn" type="button" aria-pressed="false">Edit</button>
       <input id="file" type="file" accept=".json,application/json" hidden>
     </div>
@@ -162,7 +178,9 @@ body.editing #app{max-width:1560px}
 <script src="src/playback/edit-flow/edit-flow.js"></script>
 <script src="src/playback/flow-gateway/flow-gateway.js"></script>
 <script src="src/playback/save-flow/save-flow.js"></script>
-<script src="src/playback/pick-flow/pick-flow.js"></script>
+<script src="src/playback/mcp-config/mcp-config.js"></script>
+<script src="src/playback/export-flow/export-flow.js"></script>
+<script src="src/playback/flow-menu/flow-menu.js"></script>
 <script id="sample-flow" type="application/json">{
   "$schema": "../flow.schema.json",
   "format": "flow-animator/1",
@@ -498,7 +516,67 @@ body.editing #app{max-width:1560px}
     confirm: function (m) { return window.confirm(m); },
     changed: function () { var l = srcLabel(); if (l) $('src').textContent = l; picker.select(saver.name()); picker.refresh(); }
   }, gateway);
-  var picker = window.FlowPicker.create(document, gateway, function (name) { if (discardOk()) openStored(name); else picker.select(saver.name()); });
+
+  /* ---------- header menu (slices flow-menu, export-flow, mcp-config) ---------- */
+
+  var NEW_FLOW = JSON.stringify({
+    format: 'flow-animator/1', title: 'New flow', description: 'Describe what this flow shows.',
+    nodes: [{ id: 'a', label: 'Start' }, { id: 'b', label: 'Next' }],
+    steps: [{ from: 'a', to: 'b', label: 'First step', detail: 'Edit me.' }]
+  }, null, 2);
+  var mcpDialog = window.McpConfig.create(document, function () { return location.hostname || 'localhost'; });
+  function copyText(t) {
+    if (navigator.clipboard) return navigator.clipboard.writeText(t).then(function () { return true; }, function () { return false; });
+    return Promise.resolve(false);
+  }
+  function exportName(ext) { return window.ExportFlow.fileName(S.model && S.model.title, ext); }
+  function deleteStored() {
+    var n = saver.name(); if (!n) return;
+    if (!window.confirm('Delete "' + n + '" from the server? This cannot be undone.')) return;
+    gateway.remove(n, saver.revision() ? { ifMatch: saver.revision() } : {}).then(function (r) {
+      if (r.ok) {
+        notify('Deleted ' + n);
+        if (editor) editor.markClean();
+        loadLocal($('sample-flow').textContent, 'built-in example');
+        picker.refresh();
+      } else if (r.kind === 'unauthorized') {
+        var t = window.prompt('This server needs an access token:'); if (t) { setToken(t); deleteStored(); }
+      } else if (r.kind === 'conflict') notify('Not deleted: "' + n + '" changed on the server. Reload it first.');
+      else if (r.kind === 'notfound') { notify(n + ' is already gone'); picker.refresh(); }
+      else notify('Not deleted: ' + (r.message || r.kind));
+    });
+  }
+  var picker = window.FlowMenu.create(document, gateway, {
+    openStored: function (name) { if (discardOk()) openStored(name); },
+    openFile: function () { if (discardOk()) $('file').click(); },
+    paste: function () { if (discardOk()) $('dlg').showModal(); },
+    sample: function () { if (discardOk()) loadLocal($('sample-flow').textContent, 'built-in example'); },
+    newFlow: function () {
+      if (!discardOk()) return;
+      loadLocal(NEW_FLOW, 'new flow');
+      if (editor && !editor.isActive()) $('editBtn').click();
+      notify(S.apiUp ? 'New flow. Use Save as to store it.' : 'New flow. Use Download to keep it.');
+    },
+    share: function () {
+      var n = saver.name(); if (!n) return;
+      var link = location.origin + location.pathname + '?flow=' + encodeURIComponent(n);
+      copyText(link).then(function (ok) { if (ok) notify('Link copied: ' + link); else window.prompt('Copy this link:', link); });
+    },
+    remove: deleteStored,
+    exportJson: function () {
+      if (!S.text) return;
+      window.ExportFlow.download(document, exportName('json'), 'application/json', S.text);
+    },
+    exportHtml: function () {
+      if (!S.text) return;
+      window.ExportFlow.fetchStandalone(fetch.bind(window), location.href, S.text).then(function (html) {
+        window.ExportFlow.download(document, exportName('html'), 'text/html', html);
+      }).catch(function (e) {
+        notify('Could not build the standalone HTML: ' + (e && e.message ? e.message : e) + (location.protocol === 'file:' ? ' (serve the viewer over http, or use build-standalone.js)' : ''));
+      });
+    },
+    mcp: function () { mcpDialog.open(); }
+  });
 
   function openStored(name) {
     return gateway.load(name).then(function (r) {
@@ -595,18 +673,13 @@ body.editing #app{max-width:1560px}
     window.addEventListener('beforeunload', function (e) { if (editor.isDirty()) { e.preventDefault(); e.returnValue = ''; } });
   } else $('editBtn').hidden = true;
 
-  $('openBtn').addEventListener('click', function () { if (discardOk()) $('file').click(); });
   $('file').addEventListener('change', function (e) {
     var f = e.target.files[0]; if (!f) return;
     f.text().then(function (t) { loadLocal(t, f.name); });
     e.target.value = '';
   });
-  $('pasteBtn').addEventListener('click', function () { if (discardOk()) $('dlg').showModal(); });
   $('dlg').addEventListener('close', function () {
     if ($('dlg').returnValue === 'ok' && $('ta').value.trim()) loadLocal($('ta').value, 'pasted JSON');
-  });
-  $('sampleBtn').addEventListener('click', function () {
-    if (discardOk()) loadLocal($('sample-flow').textContent, 'built-in example');
   });
 
   window.addEventListener('dragenter', function (e) { e.preventDefault(); $('drop').hidden = false; });
@@ -650,7 +723,7 @@ body.editing #app{max-width:1560px}
   var embedded = $('flow-data');
   requestAnimationFrame(frame);
 
-  picker.mount($('pickHost'));
+  picker.mount($('menuHost'));
   window.addEventListener('keydown', function (e) {
     if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S') && editor && editor.isActive() && S.apiUp) {
       e.preventDefault(); saver.save();
@@ -666,7 +739,7 @@ body.editing #app{max-width:1560px}
   }
   var flowParam = params.get('flow');
   gateway.available().then(function (up) {
-    S.apiUp = up;
+    S.apiUp = up; picker.setApi(up);
     if (editor) editor.refresh();
     return picker.refresh();
   }).then(function () {

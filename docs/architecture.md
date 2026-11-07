@@ -40,7 +40,7 @@ Inside a context, code is organised by use case (slice), not by technical layer.
 Examples:
 - Flow Modeling: `parse-flow`, `validate-flow`, `derive-beats`
 - Layout: `layout-flow`, `route-edges`
-- Playback: `load-flow`, `play-flow`, `scrub-timeline`, `render-diagram`, `edit-flow`
+- Playback: `load-flow`, `play-flow`, `scrub-timeline`, `render-diagram`, `edit-flow`, `flow-menu`, `export-flow`, `mcp-config`
 - Flow Library: `list-flows`, `read-flow`, `create-flow`, `add-node`, `add-step`, `move-step`... `flow-revision`, `flow-http-api` (list, read, save, delete over HTTP with revision checks), plus `mcp-transport`
 - Distribution: `bundle-standalone`, `validate-cli`, `docker-image`
 

@@ -3,7 +3,7 @@
 - Status: implemented (browser Download stays in the editor panel; a separate viewer-only Download and a Copy link action were not added)
 - Plan: `docs/plans/flow-storage.md`
 - Bounded context: Flow Library (upstream). Consumed by Playback (viewer and editor mode) and wired by Distribution.
-- Slice(s): new `flow-http-api` and `flow-revision` in Flow Library; new `flow-gateway`, `pick-flow`, `save-flow` in Playback; `nginx-api-proxy` in Distribution.
+- Slice(s): new `flow-http-api` and `flow-revision` in Flow Library; new `flow-gateway`, `flow-menu`, `save-flow` in Playback; `nginx-api-proxy` in Distribution.
 
 ## Problem
 Flows can be written by agents through MCP and served read-only by nginx, but the browser cannot list the server's Flows by name, save an edited Flow back, or notice that someone else changed it. The editor mode being built in parallel needs exactly this. Today a person must hand-type `?src=flows/x.flow.json` and can only get a changed Flow out of the browser by copy and paste.
