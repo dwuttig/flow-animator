@@ -65,16 +65,29 @@ dialog{width:min(640px,92vw);border:1px solid var(--line);border-radius:12px;bac
 dialog::backdrop{background:rgba(0,0,0,.4)}
 dialog textarea{width:100%;height:260px;font:12px ui-monospace,Menlo,Consolas,monospace;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px}
 dialog .row{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
-#editor{margin:16px 0 0;border:1px solid var(--line);border-radius:12px;padding:10px 14px;max-height:50vh;overflow:auto;font-size:13px}
+#layout{display:block}
+#editor{margin:16px 0 0;border:1px solid var(--line);border-radius:12px;padding:10px 14px;overflow:auto;font-size:13px}
 #editor[hidden]{display:none}
+#viewer{min-width:0}
+body.editing #app{max-width:1560px}
+@media (min-width:960px){
+  body.editing #layout{display:grid;grid-template-columns:minmax(420px,560px) minmax(0,1fr);gap:24px;align-items:start}
+  body.editing #editor{position:sticky;top:12px;max-height:calc(100vh - 24px)}
+}
+@media (max-width:959px){#editor{max-height:50vh}}
 .ebar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;position:sticky;top:-10px;background:var(--bg);padding:6px 0;z-index:1}
 .edirty{color:var(--warn);font-size:12px}
 .esec summary{cursor:pointer;font-weight:500;margin:8px 0 4px}
-.ebody{display:flex;flex-direction:column;gap:6px;align-items:flex-start;width:100%}
-.erow{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;padding:6px 0;border-top:1px solid var(--line);width:100%}
-.ef{display:flex;flex-direction:column;font-size:11px;color:var(--text2)}
-.ef input[type=text],.ef select{font:inherit;font-size:13px;color:var(--text);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:3px 6px;min-width:90px}
-.enum{min-width:30px;padding:3px 8px}
+.ebody{display:flex;flex-direction:column;width:100%}
+.erow{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:6px 8px;align-items:end;padding:8px 0;border-top:1px solid var(--line);width:100%}
+.erow>.ef{grid-column:span 4}
+.erow>button{grid-column:span 2;justify-self:stretch;height:28px;padding:0 6px}
+.erow>.eid{grid-column:span 4;align-self:center;overflow:hidden;text-overflow:ellipsis;font:12px ui-monospace,Menlo,Consolas,monospace}
+.ebody>button{align-self:flex-start;margin-top:6px}
+.ef{display:flex;flex-direction:column;font-size:11px;color:var(--text2);min-width:0}
+.ef input[type=text],.ef select{width:100%;min-width:0;font:inherit;font-size:13px;color:var(--text);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:3px 6px;height:28px}
+.ef.echk{flex-direction:row;align-items:center;gap:6px;height:28px}
+.enum{padding:0}
 #editBtn[aria-pressed=true]{background:var(--card);border-color:var(--hot)}
 #note{margin:2px 0 0;font-size:12px;color:var(--text2);min-height:1em}
 #flowPick{font:inherit;font-size:13px;color:var(--text);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:3px 6px;max-width:260px}
@@ -104,26 +117,29 @@ dialog .row{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
 
   <section id="issues" hidden aria-live="polite"></section>
 
-  <section id="editor" hidden aria-label="Editor"></section>
+  <div id="layout">
+    <section id="editor" hidden aria-label="Editor"></section>
+    <div id="viewer">
+    <section id="stage"><svg id="svg" role="img" aria-label="Animated flow diagram"></svg></section>
+    <div id="legend"></div>
 
-  <section id="stage"><svg id="svg" role="img" aria-label="Animated flow diagram"></svg></section>
-  <div id="legend"></div>
+    <section id="cap" aria-live="polite"></section>
 
-  <section id="cap" aria-live="polite"></section>
+    <section id="controls">
+      <button id="restart" type="button">Restart</button>
+      <button id="prev" type="button">Prev</button>
+      <button id="play" type="button">Pause</button>
+      <button id="next" type="button">Next</button>
+      <input id="scrub" type="range" min="0" max="0" value="0" aria-label="Step">
+      <span id="count">1 / 1</span>
+      <label>Speed <input id="spd" type="range" min="0.5" max="3" step="0.5" value="1"> <span id="spdl">1x</span></label>
+      <label><input id="loop" type="checkbox" checked> Loop</label>
+      <label><input id="trail" type="checkbox" checked> Trail</label>
+    </section>
 
-  <section id="controls">
-    <button id="restart" type="button">Restart</button>
-    <button id="prev" type="button">Prev</button>
-    <button id="play" type="button">Pause</button>
-    <button id="next" type="button">Next</button>
-    <input id="scrub" type="range" min="0" max="0" value="0" aria-label="Step">
-    <span id="count">1 / 1</span>
-    <label>Speed <input id="spd" type="range" min="0.5" max="3" step="0.5" value="1"> <span id="spdl">1x</span></label>
-    <label><input id="loop" type="checkbox" checked> Loop</label>
-    <label><input id="trail" type="checkbox" checked> Trail</label>
-  </section>
-
-  <ol id="steps"></ol>
+    <ol id="steps"></ol>
+    </div>
+  </div>
 </div>
 
 <div id="drop" hidden>Drop a .flow.json file to animate it</div>
@@ -574,6 +590,7 @@ dialog .row{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
     $('editBtn').addEventListener('click', function () {
       var on = editor.setActive(!editor.isActive());
       $('editBtn').setAttribute('aria-pressed', on ? 'true' : 'false');
+      document.body.classList.toggle('editing', on);
     });
     window.addEventListener('beforeunload', function (e) { if (editor.isDirty()) { e.preventDefault(); e.returnValue = ''; } });
   } else $('editBtn').hidden = true;

@@ -94,9 +94,10 @@
     i.type = 'text'; i.value = value == null ? '' : value;
     if (opts && opts.max) i.maxLength = opts.max;
     i.addEventListener('change', function () { onChange(i.value); });
+    cols(l, opts && opts.span);
     return i;
   }
-  function select(parent, label, options, value, onChange) {
+  function select(parent, label, options, value, onChange, span) {
     var l = h('label', 'ef', null, parent);
     h('span', null, label, l);
     var s = h('select', null, null, l);
@@ -105,14 +106,18 @@
     });
     s.value = value == null ? '' : value;
     s.addEventListener('change', function () { onChange(s.value); });
+    cols(l, span);
     return s;
   }
-  function button(parent, text, onClick, title) {
+  function button(parent, text, onClick, title, span) {
     var b = h('button', null, text, parent); b.type = 'button';
     if (title) b.title = title;
     b.addEventListener('click', onClick);
+    cols(b, span);
     return b;
   }
+  /* Place an element across n of the 12 grid columns of an editor row. */
+  function cols(el, n) { if (n) el.style.gridColumn = 'span ' + n; return el; }
   function nullable(v) { return v === '' ? null : v; }
   function freshId(prefix, list) {
     var ids = list.map(function (x) { return x.id; }), i = list.length + 1;
@@ -157,9 +162,9 @@
     var gb = section('Groups');
     (draft.groups || []).forEach(function (grp) {
       var row = h('div', 'erow', null, gb);
-      h('code', null, grp.id, row);
-      field(row, 'Label', grp.label, function (v) { edit('update_group', { id: grp.id, label: nullable(v) }); });
-      select(row, 'Color', [''].concat(Core.COLORS), grp.color, function (v) { edit('update_group', { id: grp.id, color: nullable(v) }); });
+      cols(h('code', 'eid', grp.id, row), 3);
+      field(row, 'Label', grp.label, function (v) { edit('update_group', { id: grp.id, label: nullable(v) }); }, { span: 4 });
+      select(row, 'Color', [''].concat(Core.COLORS), grp.color, function (v) { edit('update_group', { id: grp.id, color: nullable(v) }); }, 3);
       button(row, 'Remove', function () { edit('remove_group', { id: grp.id, cascade: true }); });
     });
     button(gb, '+ Group', function () {
@@ -171,16 +176,16 @@
     var groupIds = [''].concat((draft.groups || []).map(function (x) { return x.id; }));
     (draft.nodes || []).forEach(function (node) {
       var row = h('div', 'erow', null, nb);
-      field(row, 'Id', node.id, function (v) { if (v !== node.id) edit('update_node', { id: node.id, new_id: v }); });
-      field(row, 'Label', node.label, function (v) { edit('update_node', { id: node.id, label: v }); }, { max: 28 });
-      field(row, 'Subtitle', node.subtitle, function (v) { edit('update_node', { id: node.id, subtitle: nullable(v) }); }, { max: 36 });
-      select(row, 'Group', groupIds, node.group, function (v) { edit('update_node', { id: node.id, group: nullable(v) }); });
-      select(row, 'Shape', SHAPES, node.shape || 'box', function (v) { edit('update_node', { id: node.id, shape: v }); });
+      field(row, 'Id', node.id, function (v) { if (v !== node.id) edit('update_node', { id: node.id, new_id: v }); }, { span: 4 });
+      field(row, 'Label', node.label, function (v) { edit('update_node', { id: node.id, label: v }); }, { max: 28, span: 4 });
+      field(row, 'Subtitle', node.subtitle, function (v) { edit('update_node', { id: node.id, subtitle: nullable(v) }); }, { max: 36, span: 4 });
+      select(row, 'Group', groupIds, node.group, function (v) { edit('update_node', { id: node.id, group: nullable(v) }); }, 4);
+      select(row, 'Shape', SHAPES, node.shape || 'box', function (v) { edit('update_node', { id: node.id, shape: v }); }, 4);
       button(row, 'Remove', function () {
         var used = (draft.steps || []).filter(function (s) { return s.from === node.id || s.to === node.id; }).length;
         if (used && root.confirm && !root.confirm('Remove ' + node.id + ' and its ' + used + ' step(s)?')) return;
         edit('remove_node', { id: node.id, cascade: true });
-      });
+      }, null, 4);
     });
     button(nb, '+ Node', function () {
       var id = freshId('node', draft.nodes || []);
@@ -193,20 +198,20 @@
     steps.forEach(function (s, i) {
       var row = h('div', 'erow', null, sb);
       var num = button(row, String(i + 1), function () { host.jumpToStep(i); }, 'Show this step');
-      num.className = 'enum';
-      select(row, 'From', ids, s.from, function (v) { edit('update_step', { index: i, from: v }); });
-      select(row, 'To', ids, s.to, function (v) { edit('update_step', { index: i, to: v }); });
-      field(row, 'Label', s.label, function (v) { edit('update_step', { index: i, label: v }); });
-      field(row, 'Detail', s.detail, function (v) { edit('update_step', { index: i, detail: nullable(v) }); });
-      field(row, 'Payload', s.payload, function (v) { edit('update_step', { index: i, payload: nullable(v) }); });
-      select(row, 'Kind', [''].concat(KINDS), s.kind, function (v) { edit('update_step', { index: i, kind: nullable(v) }); });
-      var tl = h('label', 'ef', null, row);
+      num.className = 'enum'; cols(num, 1);
+      select(row, 'From', ids, s.from, function (v) { edit('update_step', { index: i, from: v }); }, 5);
+      select(row, 'To', ids, s.to, function (v) { edit('update_step', { index: i, to: v }); }, 6);
+      field(row, 'Label', s.label, function (v) { edit('update_step', { index: i, label: v }); }, { span: 6 });
+      field(row, 'Detail', s.detail, function (v) { edit('update_step', { index: i, detail: nullable(v) }); }, { span: 6 });
+      field(row, 'Payload', s.payload, function (v) { edit('update_step', { index: i, payload: nullable(v) }); }, { span: 3 });
+      select(row, 'Kind', [''].concat(KINDS), s.kind, function (v) { edit('update_step', { index: i, kind: nullable(v) }); }, 3);
+      var tl = cols(h('label', 'ef', null, row), 2);
       h('span', null, 'Together', tl);
       var cb = h('input', null, null, tl); cb.type = 'checkbox'; cb.checked = !!s.together;
       cb.addEventListener('change', function () { edit('update_step', { index: i, together: cb.checked ? true : null }); });
-      button(row, '↑', function () { edit('move_step', { index: i, to_index: i - 1 }); }, 'Move up').disabled = i === 0;
-      button(row, '↓', function () { edit('move_step', { index: i, to_index: i + 1 }); }, 'Move down').disabled = i === steps.length - 1;
-      button(row, 'Remove', function () { edit('remove_step', { index: i }); });
+      button(row, '↑', function () { edit('move_step', { index: i, to_index: i - 1 }); }, 'Move up', 1).disabled = i === 0;
+      button(row, '↓', function () { edit('move_step', { index: i, to_index: i + 1 }); }, 'Move down', 1).disabled = i === steps.length - 1;
+      button(row, 'Remove', function () { edit('remove_step', { index: i }); }, null, 2);
     });
     button(sb, '+ Step', function () {
       edit('add_step', { from: ids[0], to: ids[ids.length > 1 ? 1 : 0], label: 'New step' });
