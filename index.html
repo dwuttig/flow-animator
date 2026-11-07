@@ -86,8 +86,10 @@ body.editing #app{max-width:1560px}
 .esec>.ebody{padding:0 10px 10px}
 .ebody{display:flex;flex-direction:column;width:100%}
 .eitem{border-top:1px solid var(--line)}
-.eitem>summary{cursor:pointer;padding:7px 0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.eitem>.erow{border-top:0;padding-top:2px}
+.eitem>summary{cursor:pointer;padding:7px 10px;border-radius:6px;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.eitem>.erow{border-top:0;padding:2px 10px 10px}
+.eitem>summary:hover{background:var(--card)}
+.eitem[open]>summary{font-weight:600}
 .erow{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:6px 8px;align-items:end;padding:8px 0;border-top:1px solid var(--line);width:100%}
 .erow>.ef{grid-column:span 4}
 .erow>button{grid-column:span 2;justify-self:stretch;height:28px;padding:0 6px}
