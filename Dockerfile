@@ -7,8 +7,12 @@ FROM node:22-alpine AS mcp
 WORKDIR /app
 COPY flow-core.js flow-store.js mcp-server.js flow.schema.json README.md ./
 COPY src/flow-library/apply-edit/apply-edit.js ./src/flow-library/apply-edit/
-ENV FLOW_DIR=/flows MCP_HOST=0.0.0.0 PORT=8081
-# Flow files are shared with the viewer through this volume.
+COPY src/flow-library/sqlite-store/sqlite-store.js ./src/flow-library/sqlite-store/
+# Flows are stored in a SQLite database (FLOW_STORE=files switches back to a folder).
+# /flows is the import source for existing *.flow.json files (or the store itself with FLOW_STORE=files).
+ENV FLOW_STORE=sqlite FLOW_DB=/data/flows.db FLOW_DIR=/flows MCP_HOST=0.0.0.0 PORT=8081
+RUN mkdir -p /data /flows && chown node:node /data /flows
+VOLUME /data
 VOLUME /flows
 USER node
 EXPOSE 8081

@@ -25,6 +25,15 @@ services:
     environment:
       # Set a token to require "Authorization: Bearer <token>".
       MCP_TOKEN: ${MCP_TOKEN:-}
+      FLOW_STORE: ${FLOW_STORE:-sqlite}
     volumes:
+      # The flow database (default storage). Named, so `docker run -v flow-animator-data:/data` shares it.
+      - flow-data:/data
+      # Existing *.flow.json files here are imported once into a new database.
+      # Set FLOW_STORE=files to use this folder as the store instead.
       - ./flows:/flows
     restart: unless-stopped
+
+volumes:
+  flow-data:
+    name: flow-animator-data

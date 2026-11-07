@@ -14,7 +14,7 @@ function toolCall(id, name, args) { return rpc(id, 'tools/call', { name: name, a
 function parsed(res) { return JSON.parse(res.result.content[0].text); }
 
 function session(dir) {
-  var p = cp.spawn(process.execPath, [path.join(ROOT, 'mcp-server.js')], { env: Object.assign({}, process.env, { FLOW_DIR: dir }) });
+  var p = cp.spawn(process.execPath, [path.join(ROOT, 'mcp-server.js')], { env: Object.assign({}, process.env, { FLOW_DIR: dir, FLOW_STORE: 'files' }) });
   var buf = '', waiters = {};
   p.stdout.on('data', function (c) {
     buf += c; var i;
@@ -79,6 +79,7 @@ test('path traversal and bad names are rejected', async function () {
 test('http: auth, tools/call, notification, health', async function () {
   var dir = tmp();
   process.env.MCP_TOKEN = 't0k';
+  process.env.FLOW_STORE = 'files';
   var mod = require('../mcp-server.js');
   mod.store.dir = path.resolve(dir);
   var server = mod.runHttp(0);

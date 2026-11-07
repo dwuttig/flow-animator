@@ -14,7 +14,7 @@ A person or AI agent describes a system as a **Flow** (Nodes, Groups, ordered St
 | **Flow Modeling** | Core | What a valid Flow is: parse, validate, normalize, derive Beats. Owns the format `flow-animator/1` and `flow.schema.json`. | `parse`, `validate`, `normalize`, `buildBeats` in `flow-core.js` |
 | **Layout** | Supporting | Turn a normalized Flow into Geometry (positions, routed Edges, bounds). Pure, deterministic. | `layout`, `route`, helpers in `flow-core.js` |
 | **Playback** | Supporting | Show a Flow as an animation and handle user controls. Browser only. | `index.html` |
-| **Flow Library** | Supporting | Persist Flows in a directory and apply Edits safely; expose them over MCP (stdio, HTTP). | `flow-store.js`, `mcp-server.js` |
+| **Flow Library** | Supporting | Persist Flows (SQLite database, or a directory) and apply Edits safely; expose them over MCP (stdio, HTTP). | `flow-store.js`, `mcp-server.js` |
 | **Distribution** | Generic | Package and host: standalone bundle, CLI validator, Docker/nginx. | `build-standalone.js`, `validate.js`, `Dockerfile`, `docker/`, `docker-compose.yml` |
 
 ### Context map
@@ -41,7 +41,7 @@ Examples:
 - Flow Modeling: `parse-flow`, `validate-flow`, `derive-beats`
 - Layout: `layout-flow`, `route-edges`
 - Playback: `load-flow`, `play-flow`, `scrub-timeline`, `render-diagram`, `edit-flow`, `flow-menu`, `export-flow`, `mcp-config`
-- Flow Library: `list-flows`, `read-flow`, `create-flow`, `add-node`, `add-step`, `move-step`... `flow-revision`, `flow-http-api` (list, read, save, delete over HTTP with revision checks), plus `mcp-transport`
+- Flow Library: `sqlite-store`, `list-flows`, `read-flow`, `create-flow`, `add-node`, `add-step`, `move-step`... `flow-revision`, `flow-http-api` (list, read, save, delete over HTTP with revision checks), plus `mcp-transport`
 - Distribution: `bundle-standalone`, `validate-cli`, `docker-image`
 
 Layering within a slice stays light: domain logic must not import transport (HTTP, stdio, DOM, fs). I/O sits at the slice edge.

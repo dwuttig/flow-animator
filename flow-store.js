@@ -19,10 +19,16 @@ function Store(dir) {
 var fail = Edits.fail;
 var ops = Edits.ops;
 
-Store.prototype.resolve = function (name) {
+/* Flow name rules shared by every store backend. */
+function validName(name) {
   if (typeof name !== 'string' || !name) throw fail('"file" must be a non-empty string');
   if (name.slice(-SUFFIX.length) !== SUFFIX) throw fail('file name must end in ' + SUFFIX);
   if (/[\\/\0]/.test(name) || name.charAt(0) === '.') throw fail('file name must be a plain name without folders, e.g. "orders.flow.json"');
+  return name;
+}
+
+Store.prototype.resolve = function (name) {
+  validName(name);
   var full = path.join(this.dir, name);
   if (path.dirname(full) !== this.dir) throw fail('file name escapes the flow directory');
   return full;
@@ -136,4 +142,27 @@ Store.prototype.edit = function (name, op, args, opts) {
   return r;
 };
 
-module.exports = { revisionOf: revisionOf, Store: Store, ops: ops, validate: validate, fail: fail, SUFFIX: SUFFIX };
+/* Choose the backend from environment variables (see docs/features/sqlite-storage.md):
+ * FLOW_STORE=sqlite (default) | files, FLOW_DIR, FLOW_DB, FLOW_IMPORT=0 to skip the first-start import. */
+function openStore(env) {
+  env = env || process.env;
+  var dir = env.FLOW_DIR || path.join(__dirname, 'flows');
+  var kind = env.FLOW_STORE || 'sqlite';
+  if (kind === 'files') return new Store(dir);
+  if (kind !== 'sqlite') throw new Error('FLOW_STORE must be "sqlite" or "files", got "' + kind + '"');
+  var SQ = require('./src/flow-library/sqlite-store/sqlite-store.js');
+  var st = new SQ.SqliteStore(env.FLOW_DB || path.join(dir, 'flows.db'));
+  if (env.FLOW_IMPORT !== '0' && !st.getMeta('imported')) {
+    st.setMeta('imported', new Date().toISOString());
+    if (fs.existsSync(dir)) {
+      var r = st.importDir(dir);
+      if (r.imported.length || r.skipped.length) {
+        console.error('flow-animator: imported ' + r.imported.length + ' flow(s) from ' + dir + ' into ' + st.file +
+          (r.skipped.length ? '; skipped ' + r.skipped.map(function (k) { return k.file + ' (' + k.reason + ')'; }).join(', ') : ''));
+      }
+    }
+  }
+  return st;
+}
+
+module.exports = { revisionOf: revisionOf, Store: Store, openStore: openStore, validName: validName, stats: stats, ops: ops, validate: validate, fail: fail, SUFFIX: SUFFIX };

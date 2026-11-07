@@ -55,7 +55,7 @@ function api(port, method, url, body, headers) {
 
 function start(token) {
   var dir = tmp();
-  var env = Object.assign({}, process.env, { FLOW_DIR: dir });
+  var env = Object.assign({}, process.env, { FLOW_DIR: dir, FLOW_STORE: 'files' });
   delete env.MCP_TOKEN; if (token) env.MCP_TOKEN = token;
   var cp = require('child_process');
   var p = cp.spawn(process.execPath, [path.join(__dirname, '..', 'mcp-server.js'), '--http', '0'], { env: env });
@@ -117,4 +117,35 @@ test('http api: token guards reads and writes; mcp shares revisions', async func
     assert.ok(stale.err && stale.out.conflict);
     assert.strictEqual((await api(s.port, 'GET', '/api/flows/a.flow.json', undefined, H)).body.title, 'via mcp');
   } finally { s.stop(); }
+});
+
+test('http api on the default sqlite store: imports the folder, saves, survives restart', async function () {
+  var dir = tmp(), db = path.join(tmp(), 'flows.db');
+  fs.writeFileSync(path.join(dir, 'old.flow.json'), JSON.stringify(DOC));
+  function boot() {
+    var env = Object.assign({}, process.env, { FLOW_DIR: dir, FLOW_DB: db });
+    delete env.MCP_TOKEN; delete env.FLOW_STORE;
+    var p = require('child_process').spawn(process.execPath, [path.join(__dirname, '..', 'mcp-server.js'), '--http', '0'], { env: env });
+    return new Promise(function (resolve) {
+      p.stderr.on('data', function (c) {
+        var m = /:(\d+)\/mcp/.exec(String(c));
+        if (m) resolve({ port: +m[1], stop: function () { p.kill(); return new Promise(function (r) { p.on('exit', r); }); } });
+      });
+    });
+  }
+  var s = await boot(), rev;
+  try {
+    var l = (await api(s.port, 'GET', '/api/flows')).body.flows;
+    assert.deepStrictEqual(l.map(function (f) { return f.file; }), ['old.flow.json']);
+    var c = await api(s.port, 'PUT', '/api/flows/new.flow.json', DOC, { 'If-None-Match': '*' });
+    assert.strictEqual(c.status, 201); rev = c.body.revision;
+    assert.strictEqual((await api(s.port, 'DELETE', '/api/flows/old.flow.json')).status, 204);
+  } finally { await s.stop(); }
+  s = await boot();
+  try {
+    var l2 = (await api(s.port, 'GET', '/api/flows')).body.flows;
+    assert.deepStrictEqual(l2.map(function (f) { return f.file; }), ['new.flow.json']);
+    assert.strictEqual(l2[0].revision, rev);
+    assert.ok(fs.existsSync(path.join(dir, 'old.flow.json')), 'import source folder is left untouched');
+  } finally { await s.stop(); }
 });

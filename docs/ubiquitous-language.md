@@ -31,7 +31,8 @@ One vocabulary for code, docs, specs, agents and conversation. If a word here an
 ## Flow Library (supporting)
 | Term | Meaning |
 |---|---|
-| **Flow store** | The directory of flow files and the operations on it (list, read, write, delete). |
+| **Flow store** | Persistence behind the Flow Library and the operations on it (list, read, write, delete): a SQLite database (default) or a directory of flow files. |
+| **Import** | Copying flow files from a directory into the SQLite Flow store; existing names are kept. |
 | **Edit** | A single change to a Flow (add Node, move Step...). Applied, validated, then persisted, or rejected with Violations. |
 | **Tool** | An MCP-exposed Edit or query. |
 | **Flow name** | The file name that identifies a stored Flow, e.g. `orders.flow.json`. |

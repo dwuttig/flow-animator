@@ -14,7 +14,7 @@ No install, no dependencies, no build step. Node is only needed for the optional
 docker compose up --build   # viewer at http://localhost:8080
 ```
 
-Put your own `*.flow.json` files in `./flows`; they are served at `/flows/<name>.flow.json`.
+Flows are stored in a SQLite database on the `flow-animator-data` volume (see "Storing and loading flows"). Existing `*.flow.json` files in `./flows` are imported once when the database is first created.
 
 ## Editor mode
 
@@ -24,18 +24,18 @@ Click **Edit** in the viewer to change the flow in the browser: title, groups, n
 
 `mcp-server.js` lets MCP-capable agents create, read, validate and edit flow files through tools instead of rewriting JSON. Every change is validated with `flow-core.js`; an invalid change is rejected and the file stays untouched. Positions are automatic, so tools never take coordinates.
 
-- Docker: `docker compose up --build` also starts it at `http://localhost:8081/mcp` (Streamable HTTP), sharing `./flows` with the viewer. Set `MCP_TOKEN` to require a bearer token.
-- Local stdio: `FLOW_DIR=./flows node mcp-server.js`, or `docker run -i --rm -v ./flows:/flows flow-animator-mcp node mcp-server.js`.
+- Docker: `docker compose up --build` also starts it at `http://localhost:8081/mcp` (Streamable HTTP), sharing the flow database with the viewer. Set `MCP_TOKEN` to require a bearer token.
+- Local stdio: `node mcp-server.js` (database `./flows/flows.db`; `FLOW_DB` changes it), or `docker run -i --rm -v flow-animator-data:/data flow-animator-mcp node mcp-server.js` to share the compose volume.
 - Local HTTP: `node mcp-server.js --http 8081`.
-- Client config (stdio): `{"mcpServers":{"flow-animator":{"command":"node","args":["/path/to/mcp-server.js"],"env":{"FLOW_DIR":"/path/to/flows"}}}}`. For HTTP use the URL `http://localhost:8081/mcp`.
+- Client config (stdio): `{"mcpServers":{"flow-animator":{"command":"node","args":["/path/to/mcp-server.js"],"env":{"FLOW_DB":"/path/to/flows.db"}}}}`. For HTTP use the URL `http://localhost:8081/mcp`.
 - Tools: `list_flows`, `read_flow`, `validate_flow`, `create_flow`, `delete_flow`, `set_meta`, `add_group`/`update_group`/`remove_group`, `add_node`/`update_node`/`remove_node`, `add_step`/`update_step`/`remove_step`/`move_step`. Resources: `flow://schema`, `flow://guide`.
 - Tests: `node --test`.
-- Linux note: the container runs as a non-root user; if `./flows` is not writable by it, run `chmod a+w flows`.
+- Linux note: with `FLOW_STORE=files` the container runs as a non-root user; if `./flows` is not writable by it, run `chmod a+w flows`.
 
 ---
 
 ## Storing and loading flows
-Flows are `*.flow.json` files in `FLOW_DIR` (Docker: `./flows`). The MCP server also serves a small HTTP API on its port; nginx exposes it to the viewer at `/api/`:
+Flows live in a SQLite database (Node's built-in `node:sqlite`, no dependency): `FLOW_DB`, default `<FLOW_DIR>/flows.db`, in Docker `/data/flows.db` on the named volume `flow-animator-data`. Set `FLOW_STORE=files` to keep plain `*.flow.json` files in `FLOW_DIR` (Docker: `./flows`) instead. When a new database is created, `*.flow.json` files found in `FLOW_DIR` are imported once (`FLOW_IMPORT=0` disables this); import again any time with `node mcp-server.js --import [dir]` (existing names are kept). Back up the database by exporting flows from the viewer or copying the volume. Revisions are the same in both stores. The viewer's static `/flows/` listing only shows the folder. The MCP server also serves a small HTTP API on its port; nginx exposes it to the viewer at `/api/`:
 
 - `GET /api/flows` lists flows with title, counts, `revision` and `modifiedAt`.
 - `GET /api/flows/<name>` returns the flow with an `ETag` (the revision).

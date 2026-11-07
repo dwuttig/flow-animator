@@ -18,7 +18,7 @@
   function build(o) {
     o = o || {};
     var port = o.port || 8081, host = o.host || 'localhost', token = (o.token || '').trim();
-    var image = o.image || 'flow-animator-mcp:latest', dir = o.flowsDir || '/path/to/flows';
+    var image = o.image || 'flow-animator-mcp:latest', dir = o.flowsDir || 'flow-animator-data';
     var entry, command;
     if (o.mode === 'http') {
       var url = 'http://' + host + ':' + port + '/mcp';
@@ -29,7 +29,7 @@
         command += ' --header ' + q('Authorization: Bearer ' + token);
       }
     } else {
-      var args = ['run', '-i', '--rm', '-v', dir + ':/flows', image, 'node', 'mcp-server.js'];
+      var args = ['run', '-i', '--rm', '-v', dir + ':/data', image, 'node', 'mcp-server.js'];
       var exe = o.windows ? 'docker.exe' : 'docker';
       entry = { command: exe, args: args };
       command = 'claude mcp add ' + NAME + ' -- ' + exe + ' ' + args.map(q).join(' ');
@@ -62,7 +62,7 @@
       tokenRow.hidden = mode !== 'http'; dirRow.hidden = mode !== 'stdio';
       note.textContent = mode === 'http'
         ? 'Needs the mcp service running (docker compose up). If MCP_TOKEN is set on the server, enter it here.'
-        : 'Runs a throw-away container per session. The folder must be the one the viewer serves as ./flows (an absolute path, e.g. C:/flows or /home/you/flows).';
+        : 'Runs a throw-away container per session. The volume must be the one the mcp service uses (flow-animator-data from docker-compose.yml), otherwise your flows are not shared with the viewer.';
     }
     function buildDialog() {
       dlg = el('dialog', null, doc.body, { id: 'mcpDlg', 'aria-labelledby': 'mcpTitle' });
@@ -74,8 +74,8 @@
       tabs.http = el('button', 'HTTP (port 8081)', bar, { type: 'button' });
       tabs.stdio.addEventListener('click', function () { mode = 'stdio'; update(); });
       tabs.http.addEventListener('click', function () { mode = 'http'; update(); });
-      dirRow = el('label', 'Flows folder on this machine ', box, { 'class': 'mcprow' });
-      dirIn = el('input', null, dirRow, { type: 'text', value: '/path/to/flows', spellcheck: 'false' });
+      dirRow = el('label', 'Docker volume (or folder) holding the flow database ', box, { 'class': 'mcprow' });
+      dirIn = el('input', null, dirRow, { type: 'text', value: 'flow-animator-data', spellcheck: 'false' });
       tokenRow = el('label', 'Access token (optional) ', box, { 'class': 'mcprow' });
       tokenIn = el('input', null, tokenRow, { type: 'text', placeholder: 'MCP_TOKEN', spellcheck: 'false', autocomplete: 'off' });
       dirIn.addEventListener('input', update); tokenIn.addEventListener('input', update);

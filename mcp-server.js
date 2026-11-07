@@ -5,9 +5,13 @@
  *
  *   node mcp-server.js                 stdio (default)
  *   node mcp-server.js --http [PORT]   HTTP on PORT (default 8081), endpoint POST /mcp
+ *   node mcp-server.js --import [DIR]  copy DIR/*.flow.json (default FLOW_DIR) into the SQLite database, keeping existing names
  *
  * Environment:
- *   FLOW_DIR    directory holding *.flow.json files (default ./flows)
+ *   FLOW_STORE  sqlite (default) or files
+ *   FLOW_DB     SQLite database file (default <FLOW_DIR>/flows.db)
+ *   FLOW_DIR    directory holding *.flow.json files (default ./flows); with sqlite it is the import source
+ *   FLOW_IMPORT 0 = do not import FLOW_DIR into a new database on first start
  *   MCP_TOKEN   if set, HTTP requests must send "Authorization: Bearer <token>"
  *   MCP_HOST    HTTP bind address (default 127.0.0.1; the Docker image sets 0.0.0.0)
  *   PORT        HTTP port if not given on the command line
@@ -23,7 +27,7 @@ var S = require('./flow-store.js');
 
 var PROTOCOL = '2025-03-26';
 var SUPPORTED = ['2025-03-26', '2024-11-05'];
-var store = new S.Store(process.env.FLOW_DIR || path.join(__dirname, 'flows'));
+var store = S.openStore(process.env);
 
 /* ---------- tool definitions ---------- */
 
@@ -190,7 +194,7 @@ function runStdio() {
     }
   });
   process.stdin.on('end', function () { process.exit(0); });
-  console.error('flow-animator MCP server on stdio, FLOW_DIR=' + store.dir);
+  console.error('flow-animator MCP server on stdio, storage=' + store.dir);
 }
 
 /* ---------- Flow API (Flow Library, slice flow-http-api) ---------- */
@@ -291,15 +295,21 @@ function runHttp(port) {
     });
   });
   server.listen(port, host, function () {
-    console.error('flow-animator MCP server on http://' + host + ':' + server.address().port + '/mcp, FLOW_DIR=' + store.dir + (token ? ', token required' : ', NO token'));
+    console.error('flow-animator MCP server on http://' + host + ':' + server.address().port + '/mcp, storage=' + store.dir + (token ? ', token required' : ', NO token'));
   });
   return server;
 }
 
 if (require.main === module) {
   var args = process.argv.slice(2);
-  var hi = args.indexOf('--http');
-  if (hi >= 0) {
+  var hi = args.indexOf('--http'), ii = args.indexOf('--import');
+  if (ii >= 0) {
+    if (typeof store.importDir !== 'function') { console.error('--import needs FLOW_STORE=sqlite'); process.exit(1); }
+    var from = args[ii + 1] || process.env.FLOW_DIR || path.join(__dirname, 'flows');
+    var ir = store.importDir(from);
+    console.log('imported ' + ir.imported.length + ', already present ' + ir.existing.length + ', skipped ' + ir.skipped.length + ' (from ' + from + ' into ' + store.file + ')');
+    ir.skipped.forEach(function (k) { console.log('  skipped ' + k.file + ': ' + k.reason); });
+  } else if (hi >= 0) {
     var pn = parseInt(args[hi + 1], 10);
     runHttp(isNaN(pn) ? parseInt(process.env.PORT, 10) || 8081 : pn);
   } else runStdio();
