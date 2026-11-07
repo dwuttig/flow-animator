@@ -98,3 +98,14 @@ test('http: auth, tools/call, notification, health', async function () {
     assert.strictEqual((await fetch(base + '/mcp', { headers: h })).status, 405);
   } finally { server.close(); delete process.env.MCP_TOKEN; }
 });
+
+test('tool schemas only use string enums (strict clients reject null in enum)', function () {
+  var bad = [];
+  (function walk(n, where) {
+    if (Array.isArray(n)) return n.forEach(function (x, i) { walk(x, where + '[' + i + ']'); });
+    if (!n || typeof n !== 'object') return;
+    if (Array.isArray(n.enum) && n.enum.some(function (v) { return typeof v !== 'string'; })) bad.push(where);
+    Object.keys(n).forEach(function (k) { walk(n[k], where + '.' + k); });
+  })(require('../mcp-server.js').TOOLS, 'TOOLS');
+  assert.deepStrictEqual(bad, []);
+});

@@ -30,8 +30,9 @@
       }
     } else {
       var args = ['run', '-i', '--rm', '-v', dir + ':/flows', image, 'node', 'mcp-server.js'];
-      entry = { command: 'docker', args: args };
-      command = 'claude mcp add ' + NAME + ' -- docker ' + args.map(q).join(' ');
+      var exe = o.windows ? 'docker.exe' : 'docker';
+      entry = { command: exe, args: args };
+      command = 'claude mcp add ' + NAME + ' -- ' + exe + ' ' + args.map(q).join(' ');
     }
     var json = { mcpServers: {} };
     json.mcpServers[NAME] = entry;
@@ -55,7 +56,7 @@
       else done();
     }
     function update() {
-      var r = build({ mode: mode, host: getHost && getHost(), token: tokenIn.value, flowsDir: dirIn.value });
+      var r = build({ mode: mode, host: getHost && getHost(), token: tokenIn.value, flowsDir: dirIn.value, windows: /Win/i.test((doc.defaultView && doc.defaultView.navigator.platform) || '') });
       pre.textContent = r.text; cmd.textContent = r.command;
       Object.keys(tabs).forEach(function (k) { tabs[k].setAttribute('aria-pressed', k === mode ? 'true' : 'false'); });
       tokenRow.hidden = mode !== 'http'; dirRow.hidden = mode !== 'stdio';

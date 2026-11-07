@@ -6,6 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Fixed
+- MCP: tool schemas no longer put `null` in `enum` lists (strict clients rejected the whole tool list); clearing a field with null still works. MCP config dialog uses `docker.exe` on Windows (CreateProcess error 193).
 - Editor mode layout: the editing panel is now a left column next to the animated flow (right column) instead of stacked above it, and Group, Node and Step rows use a 12-column grid so labels, inputs, selects and buttons line up (stacked on screens narrower than 960px).
 - Docker: `/` returned 404 because the nginx `try_files` did not fall back to `index.html`.
 
