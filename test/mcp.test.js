@@ -61,7 +61,7 @@ test('stdio: initialize, list, create, edit, reject invalid', async function () 
     assert.strictEqual(parsed(rm2).stats.steps, 1);
 
     var ls = await s.call(toolCall(9, 'list_flows', {}));
-    assert.strictEqual(parsed(ls).flows[0].file, 'x.flow.json');
+    assert.strictEqual(parsed(ls).flows[0].file, 'x');
   } finally { s.close(); }
 });
 

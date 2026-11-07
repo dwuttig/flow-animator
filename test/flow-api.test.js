@@ -136,7 +136,7 @@ test('http api on the default sqlite store: imports the folder, saves, survives 
   var s = await boot(), rev;
   try {
     var l = (await api(s.port, 'GET', '/api/flows')).body.flows;
-    assert.deepStrictEqual(l.map(function (f) { return f.file; }), ['old.flow.json']);
+    assert.deepStrictEqual(l.map(function (f) { return f.file; }), ['old']);
     var c = await api(s.port, 'PUT', '/api/flows/new.flow.json', DOC, { 'If-None-Match': '*' });
     assert.strictEqual(c.status, 201); rev = c.body.revision;
     assert.strictEqual((await api(s.port, 'DELETE', '/api/flows/old.flow.json')).status, 204);
@@ -144,7 +144,7 @@ test('http api on the default sqlite store: imports the folder, saves, survives 
   s = await boot();
   try {
     var l2 = (await api(s.port, 'GET', '/api/flows')).body.flows;
-    assert.deepStrictEqual(l2.map(function (f) { return f.file; }), ['new.flow.json']);
+    assert.deepStrictEqual(l2.map(function (f) { return f.file; }), ['new']);
     assert.strictEqual(l2[0].revision, rev);
     assert.ok(fs.existsSync(path.join(dir, 'old.flow.json')), 'import source folder is left untouched');
   } finally { await s.stop(); }

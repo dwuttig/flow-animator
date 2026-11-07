@@ -45,7 +45,7 @@ test('sqlite: invalid documents are rejected and nothing is stored', function ()
 
 test('sqlite: names follow the same rules as files', function () {
   var st = newStore();
-  ['x.json', '../x.flow.json', 'a/b.flow.json', '.hidden.flow.json', ''].forEach(function (n) {
+  ['../x.flow.json', 'a/b.flow.json', '.hidden.flow.json', '', 'has space'].forEach(function (n) {
     assert.throws(function () { st.write(n, DOC); }, function (e) { return e.userError; }, n);
   });
 });
@@ -54,7 +54,7 @@ test('sqlite: list gives title, counts, revision, modifiedAt, sorted', function 
   var st = newStore();
   st.write('b.flow.json', DOC); st.write('a.flow.json', DOC);
   var l = st.list();
-  assert.deepStrictEqual(l.map(function (f) { return f.file; }), ['a.flow.json', 'b.flow.json']);
+  assert.deepStrictEqual(l.map(function (f) { return f.file; }), ['a', 'b']);
   assert.strictEqual(l[0].title, 'T'); assert.strictEqual(l[0].nodes, 2); assert.strictEqual(l[0].steps, 1);
   assert.ok(l[0].revision && l[0].modifiedAt);
 });
@@ -85,12 +85,12 @@ test('import: copies flow files once, skips invalid, never overwrites', function
   st.write('keep.flow.json', d2);
   fs.writeFileSync(path.join(dir, 'keep.flow.json'), JSON.stringify(DOC));
   var r = st.importDir(dir);
-  assert.deepStrictEqual(r.imported, ['ok.flow.json']);
-  assert.deepStrictEqual(r.existing, ['keep.flow.json']);
+  assert.deepStrictEqual(r.imported, ['ok']);
+  assert.deepStrictEqual(r.existing, ['keep']);
   assert.strictEqual(r.skipped.length, 1);
   assert.strictEqual(r.skipped[0].file, 'broken.flow.json');
-  assert.strictEqual(st.read('keep.flow.json').title, 'in db');
-  assert.strictEqual(st.read('ok.flow.json').title, 'T');
+  assert.strictEqual(st.read('keep').title, 'in db');
+  assert.strictEqual(st.read('ok').title, 'T');
 });
 
 test('openStore: sqlite by default, first-start import happens once', function () {
@@ -99,7 +99,7 @@ test('openStore: sqlite by default, first-start import happens once', function (
   var env = { FLOW_DIR: dir, FLOW_DB: path.join(data, 'flows.db') };
   var st = S.openStore(env);
   assert.ok(st instanceof SQ.SqliteStore);
-  assert.deepStrictEqual(st.list().map(function (f) { return f.file; }), ['a.flow.json']);
+  assert.deepStrictEqual(st.list().map(function (f) { return f.file; }), ['a']);
   st.remove('a.flow.json');
   var st2 = S.openStore(env); // reopened: must not resurrect the deleted flow
   assert.deepStrictEqual(st2.list(), []);
@@ -114,4 +114,34 @@ test('openStore: FLOW_IMPORT=0 skips the import; FLOW_STORE=files gives the fold
   assert.ok(fsStore instanceof S.Store);
   assert.strictEqual(fsStore.list().length, 1);
   assert.throws(function () { S.openStore({ FLOW_DIR: dir, FLOW_STORE: 'mongo' }); }, /FLOW_STORE/);
+});
+
+test('names: bare names, a typed .flow.json suffix is stripped, unique ignoring case', function () {
+  var st = newStore();
+  var w = st.write('Orders', DOC);
+  assert.ok(w.ok && w.created);
+  assert.deepStrictEqual(st.list().map(function (f) { return f.file; }), ['Orders']);
+  assert.strictEqual(st.read('Orders.flow.json').title, 'T');
+  assert.strictEqual(st.exists('orders'), true);
+  assert.strictEqual(st.write('ORDERS.flow.json', DOC, { ifNoneMatch: '*' }).conflict, true);
+  assert.throws(function () { st.write('a b', DOC); }, function (e) { return e.userError; });
+  assert.throws(function () { st.write('x/y', DOC); }, function (e) { return e.userError; });
+  assert.throws(function () { st.write('.flow.json', DOC); }, function (e) { return e.userError; });
+});
+
+test('names: legacy rows with the suffix are renamed when the database is opened', function () {
+  var file = path.join(tmp(), 'old.db');
+  var DatabaseSync = require('node:sqlite').DatabaseSync;
+  var raw = new DatabaseSync(file);
+  raw.exec('CREATE TABLE flows (name TEXT PRIMARY KEY, body TEXT NOT NULL, revision TEXT NOT NULL, modified_at TEXT NOT NULL); CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);');
+  var text = JSON.stringify(DOC, null, 2) + '\n';
+  raw.prepare('INSERT INTO flows VALUES (?,?,?,?)').run('legacy.flow.json', text, S.revisionOf(text), 'now');
+  raw.close();
+  var st = new SQ.SqliteStore(file);
+  assert.deepStrictEqual(st.list().map(function (f) { return f.file; }), ['legacy']);
+  assert.strictEqual(st.revision('legacy.flow.json'), S.revisionOf(text));
+});
+
+test('names: a name ending in .json is rejected (it would be confused with a file)', function () {
+  assert.throws(function () { newStore().write('x.json', DOC); }, function (e) { return e.userError; });
 });

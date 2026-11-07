@@ -35,7 +35,7 @@ One vocabulary for code, docs, specs, agents and conversation. If a word here an
 | **Import** | Copying flow files from a directory into the SQLite Flow store; existing names are kept. |
 | **Edit** | A single change to a Flow (add Node, move Step...). Applied, validated, then persisted, or rejected with Violations. |
 | **Tool** | An MCP-exposed Edit or query. |
-| **Flow name** | The file name that identifies a stored Flow, e.g. `orders.flow.json`. |
+| **Flow name** | The unique, suffix-free name that identifies a stored Flow, e.g. `orders` (case-insensitive; a trailing `.flow.json` is accepted and stripped). |
 | **Revision** | Content hash of a stored Flow, used to detect that it changed since it was loaded. |
 | **Conflict** | A save or delete that carried an older Revision than the stored one; rejected, nothing written. |
 | **Flow API** | The HTTP interface of the Flow Library (`/api/flows`). |

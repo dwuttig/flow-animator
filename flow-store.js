@@ -19,19 +19,21 @@ function Store(dir) {
 var fail = Edits.fail;
 var ops = Edits.ops;
 
-/* Flow name rules shared by every store backend. */
+/* A Flow name is a bare unique name such as "orders". A trailing ".flow.json" is accepted and
+ * stripped, so older names, links and clients keep working. Returns the bare name. */
+var NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
+function bareName(name) {
+  if (typeof name !== 'string' || !name) throw fail('flow name must be a non-empty string');
+  return name.slice(-SUFFIX.length) === SUFFIX ? name.slice(0, -SUFFIX.length) : name;
+}
 function validName(name) {
-  if (typeof name !== 'string' || !name) throw fail('"file" must be a non-empty string');
-  if (name.slice(-SUFFIX.length) !== SUFFIX) throw fail('file name must end in ' + SUFFIX);
-  if (/[\\/\0]/.test(name) || name.charAt(0) === '.') throw fail('file name must be a plain name without folders, e.g. "orders.flow.json"');
-  return name;
+  var n = bareName(name);
+  if (!NAME_RE.test(n) || /\.json$/i.test(n)) throw fail('flow name must be 1-100 letters, digits, dot, dash or underscore, starting with a letter or digit, e.g. "orders"');
+  return n;
 }
 
 Store.prototype.resolve = function (name) {
-  validName(name);
-  var full = path.join(this.dir, name);
-  if (path.dirname(full) !== this.dir) throw fail('file name escapes the flow directory');
-  return full;
+  return path.join(this.dir, validName(name) + SUFFIX);
 };
 
 Store.prototype.list = function () {
@@ -40,7 +42,7 @@ Store.prototype.list = function () {
   return fs.readdirSync(this.dir).filter(function (n) {
     return n.slice(-SUFFIX.length) === SUFFIX && n.charAt(0) !== '.';
   }).sort().map(function (n) {
-    var out = { file: n };
+    var out = { file: n.slice(0, -SUFFIX.length) };
     try {
       var full = path.join(self.dir, n), raw = fs.readFileSync(full, 'utf8');
       out.revision = revisionOf(raw);

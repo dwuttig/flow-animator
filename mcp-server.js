@@ -32,7 +32,7 @@ var store = S.openStore(process.env);
 /* ---------- tool definitions ---------- */
 
 var STR = { type: 'string' };
-var FILE = { type: 'string', description: 'Flow file name in the flow directory, e.g. "orders.flow.json"' };
+var FILE = { type: 'string', description: 'Unique flow name, e.g. "orders" (no suffix needed; a trailing .flow.json is accepted)' };
 var COLORS = { enum: ['gray', 'purple', 'teal', 'coral', 'pink', 'blue', 'green', 'amber', 'red'] };
 var SHAPE = { enum: ['box', 'database', 'queue'] };
 var KIND = { enum: ['sync', 'async', 'response', 'event'] };

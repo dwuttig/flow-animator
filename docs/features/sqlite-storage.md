@@ -15,6 +15,9 @@ Flows live as loose `*.flow.json` files in a folder. That works for one person, 
 4. **Revision is identical in both backends**: SHA-256 of the stored text (`JSON.stringify(doc, null, 2) + "\n"`), first 16 hex chars. Importing a folder therefore keeps Revisions of files written by this server.
 5. **One-time import**: when the database is created empty and `FLOW_DIR` holds `*.flow.json` files, they are imported once (never overwriting, invalid files skipped with a message). It is recorded in the database, so a flow deleted later does not come back. `FLOW_IMPORT=0` disables it; `node mcp-server.js --import [dir]` imports on demand (existing names are kept).
 
+## Flow names (follow-up)
+A Flow name is a bare unique name (`orders`): 1-100 letters, digits, dot, dash or underscore, starting with a letter or digit, not ending in `.json`, unique ignoring case. A trailing `.flow.json` is stripped everywhere (store, API, MCP, viewer), so old links and clients work. The folder store still keeps `orders.flow.json` on disk. A SQLite database with suffixed names is rebuilt once on open (clashing names get `-2`).
+
 ## Goals
 - Default storage is a single database file on a Docker volume.
 - Folder store still available and unchanged.

@@ -71,8 +71,8 @@ test('gateway: without an API it falls back to the static listing and read-only'
     }
   });
   assert.strictEqual(await gw.available(), false);
-  assert.deepStrictEqual((await gw.list()).map(function (e) { return e.file; }), ['o.flow.json']);
-  var l = await gw.load('o.flow.json');
+  assert.deepStrictEqual((await gw.list()).map(function (e) { return e.file; }), ['o']);
+  var l = await gw.load('o');
   assert.ok(l.ok && l.revision === null);
   var down = Gateway.create({ fetch: function () { return Promise.reject(new Error('offline')); } });
   assert.strictEqual(await down.available(), false);

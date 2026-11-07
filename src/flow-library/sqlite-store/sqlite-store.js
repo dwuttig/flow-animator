@@ -16,8 +16,32 @@ function SqliteStore(file) {
   fs.mkdirSync(path.dirname(this.file), { recursive: true });
   this.db = new DatabaseSync(this.file);
   this.db.exec('PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;');
-  this.db.exec('CREATE TABLE IF NOT EXISTS flows (name TEXT PRIMARY KEY, body TEXT NOT NULL, revision TEXT NOT NULL, modified_at TEXT NOT NULL);' +
+  this.db.exec('CREATE TABLE IF NOT EXISTS flows (name TEXT PRIMARY KEY COLLATE NOCASE, body TEXT NOT NULL, revision TEXT NOT NULL, modified_at TEXT NOT NULL);' +
     'CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);');
+  migrateNames(this.db);
+}
+
+/* Older databases stored names with ".flow.json" and compared case-sensitively. Rebuild once:
+ * bare names, case-insensitive unique (the first of two clashing names wins, the other is kept as name-2 etc.). */
+function migrateNames(db) {
+  var sql = db.prepare("SELECT sql FROM sqlite_master WHERE name = 'flows'").get().sql;
+  var rows = db.prepare('SELECT name, body, revision, modified_at FROM flows ORDER BY name').all();
+  var legacy = sql.indexOf('NOCASE') < 0 || rows.some(function (r) { return r.name.slice(-Base.SUFFIX.length) === Base.SUFFIX; });
+  if (!legacy) return;
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    db.exec('ALTER TABLE flows RENAME TO flows_old');
+    db.exec('CREATE TABLE flows (name TEXT PRIMARY KEY COLLATE NOCASE, body TEXT NOT NULL, revision TEXT NOT NULL, modified_at TEXT NOT NULL)');
+    var ins = db.prepare('INSERT INTO flows (name, body, revision, modified_at) VALUES (?, ?, ?, ?)');
+    var has = db.prepare('SELECT 1 AS x FROM flows WHERE name = ?');
+    rows.forEach(function (r) {
+      var n = r.name.slice(-Base.SUFFIX.length) === Base.SUFFIX ? r.name.slice(0, -Base.SUFFIX.length) : r.name, c = n, i = 2;
+      while (has.get(c)) c = n + '-' + (i++);
+      ins.run(c, r.body, r.revision, r.modified_at);
+    });
+    db.exec('DROP TABLE flows_old');
+    db.exec('COMMIT');
+  } catch (e) { db.exec('ROLLBACK'); throw e; }
 }
 
 SqliteStore.prototype.resolve = Base.validName;
@@ -35,7 +59,7 @@ SqliteStore.prototype.setMeta = function (key, value) {
 };
 
 SqliteStore.prototype.list = function () {
-  return this.db.prepare('SELECT name, body, revision, modified_at FROM flows ORDER BY name').all().map(function (r) {
+  return this.db.prepare('SELECT name, body, revision, modified_at FROM flows ORDER BY name COLLATE NOCASE').all().map(function (r) {
     var out = { file: r.name, revision: r.revision, modifiedAt: r.modified_at };
     try {
       var d = JSON.parse(r.body);
@@ -48,15 +72,15 @@ SqliteStore.prototype.list = function () {
 };
 
 SqliteStore.prototype.revision = function (name) {
-  this.resolve(name);
+  name = this.resolve(name);
   var r = row(this, name);
   return r ? r.revision : null;
 };
 
-SqliteStore.prototype.exists = function (name) { this.resolve(name); return !!row(this, name); };
+SqliteStore.prototype.exists = function (name) { name = this.resolve(name); return !!row(this, name); };
 
 SqliteStore.prototype.readWithRevision = function (name) {
-  this.resolve(name);
+  name = this.resolve(name);
   var r = row(this, name);
   if (!r) throw Base.fail('no such flow: ' + name);
   try { return { doc: JSON.parse(r.body), revision: r.revision, text: r.body }; }
@@ -72,7 +96,7 @@ function transaction(db, fn) {
 }
 
 SqliteStore.prototype.write = function (name, doc, opts) {
-  this.resolve(name);
+  name = this.resolve(name);
   var res = Core.loadDoc(doc);
   if (!res.ok) return { ok: false, errors: res.errors, warnings: res.warnings };
   var self = this, text = JSON.stringify(doc, null, 2) + '\n', rev = Base.revisionOf(text);
@@ -87,7 +111,7 @@ SqliteStore.prototype.write = function (name, doc, opts) {
 };
 
 SqliteStore.prototype.remove = function (name, opts) {
-  this.resolve(name);
+  name = this.resolve(name);
   var self = this;
   return transaction(this.db, function () {
     if (!row(self, name)) throw Base.fail('no such flow: ' + name);
@@ -105,12 +129,15 @@ SqliteStore.prototype.importDir = function (dir) {
   fs.readdirSync(dir).filter(function (n) {
     return n.slice(-Base.SUFFIX.length) === Base.SUFFIX && n.charAt(0) !== '.';
   }).sort().forEach(function (n) {
-    if (this.exists(n)) return out.existing.push(n);
+    var bare = n.slice(0, -Base.SUFFIX.length);
+    if (this.exists(bare)) return out.existing.push(bare);
     var doc;
     try { doc = JSON.parse(fs.readFileSync(path.join(dir, n), 'utf8')); }
     catch (e) { return out.skipped.push({ file: n, reason: 'not valid JSON' }); }
-    var w = this.write(n, doc, { ifNoneMatch: '*' });
-    if (w.ok) out.imported.push(n);
+    var w;
+    try { w = this.write(bare, doc, { ifNoneMatch: '*' }); }
+    catch (e) { if (e.userError) return out.skipped.push({ file: n, reason: e.message }); throw e; }
+    if (w.ok) out.imported.push(bare);
     else out.skipped.push({ file: n, reason: 'invalid flow: ' + (w.errors[0] && (w.errors[0].message || w.errors[0])) });
   }, this);
   return out;

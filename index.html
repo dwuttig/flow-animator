@@ -511,7 +511,7 @@ body.editing #app{max-width:1560px}
     markClean: function () { if (editor) editor.markClean(); },
     report: function (errors, warnings) { showIssues(errors, warnings, 'save', true); },
     notify: notify,
-    askName: function (def) { return window.prompt('Save as (name ends in .flow.json):', def); },
+    askName: function (def) { return window.prompt('Save as (a unique flow name):', def); },
     askToken: function () { var t = window.prompt('This server needs an access token:'); if (t) setToken(t); return t; },
     confirm: function (m) { return window.confirm(m); },
     changed: function () { var l = srcLabel(); if (l) $('src').textContent = l; picker.select(saver.name()); picker.refresh(); }
@@ -579,6 +579,7 @@ body.editing #app{max-width:1560px}
   });
 
   function openStored(name) {
+    name = String(name).replace(/\.flow\.json$/i, ''); // older links carry the suffix
     return gateway.load(name).then(function (r) {
       if (!r.ok && r.kind === 'unauthorized') {
         var t = window.prompt('This server needs an access token:');

@@ -11,6 +11,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Docker: `/` returned 404 because the nginx `try_files` did not fall back to `index.html`.
 
 ### Changed
+- **Flow names have no `.json` suffix**: Save as asks only for a unique name (a typed `.flow.json` is stripped), the picker, `?flow=` links, `/api/flows/<name>` and MCP show bare names; the old `name.flow.json` form is still accepted, and SQLite databases created earlier are migrated. Names are unique ignoring case. Downloads are still `.flow.json` files.
 - **Default flow storage is now SQLite** (`node:sqlite`, no new dependency; Docker volume `flow-animator-data`, `/data/flows.db`). Set `FLOW_STORE=files` for the old folder of `*.flow.json`. The MCP config dialog's stdio command now mounts that volume instead of the flows folder.
 - `build-standalone.js` now shares its bundling code with the viewer's export (`src/playback/export-flow/`) and works with CRLF checkouts. The `pick-flow` slice is replaced by `flow-menu`.
 - Project now follows Domain-Driven Design: bounded contexts and vertical slices documented in `docs/architecture.md` and `docs/ubiquitous-language.md`; agents, spec and plan templates updated. Code restructuring is proposed in `docs/features/ddd-restructure.md`.

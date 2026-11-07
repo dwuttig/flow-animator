@@ -75,7 +75,7 @@
         }).then(function (a) {
           return (Array.isArray(a) ? a : []).filter(function (e) {
             return e && e.type === 'file' && typeof e.name === 'string' && e.name.slice(-SUFFIX.length) === SUFFIX;
-          }).map(function (e) { return { file: e.name, title: null, revision: null, modifiedAt: e.mtime || null }; });
+          }).map(function (e) { return { file: e.name.slice(0, -SUFFIX.length), title: null, revision: null, modifiedAt: e.mtime || null }; });
         }).catch(function () { return []; });
       }).catch(function () { return []; });
     },
@@ -83,7 +83,7 @@
     load: function (name, o) {
       o = o || {};
       return gw.available().then(function (up) {
-        var u = up ? url(name) : (listing || 'flows/') + encodeURIComponent(name);
+        var u = up ? url(name) : (listing || 'flows/') + encodeURIComponent(name.slice(-SUFFIX.length) === SUFFIX ? name : name + SUFFIX);
         var h = headers();
         if (up && o.ifNoneMatch) h['If-None-Match'] = '"' + o.ifNoneMatch + '"';
         return f(u, { headers: h, cache: 'no-store' }).then(function (r) {

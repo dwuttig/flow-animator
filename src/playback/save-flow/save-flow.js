@@ -14,22 +14,21 @@
  *   var saver = FlowSaver.create(host, gateway)
  */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = { create: factory, NAME_RE: /^[A-Za-z0-9][A-Za-z0-9._-]*\.flow\.json$/ };
-  else root.FlowSaver = { create: factory, NAME_RE: /^[A-Za-z0-9][A-Za-z0-9._-]*\.flow\.json$/ };
+  if (typeof module === 'object' && module.exports) module.exports = { create: factory, NAME_RE: /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/ };
+  else root.FlowSaver = { create: factory, NAME_RE: /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/ };
 })(typeof self !== 'undefined' ? self : this, function create(host, gw) {
   'use strict';
-  var NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*\.flow\.json$/;
+  var NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
   var name = null, revision = null;
 
   function normalize(n) {
     n = String(n || '').trim();
-    if (n && !/\.flow\.json$/.test(n)) n = n.replace(/\.json$/, '') + '.flow.json';
-    return n;
+    return n.replace(/\.flow\.json$/i, '').replace(/\.json$/i, '');
   }
 
   function suggest() {
     var t; try { t = JSON.parse(host.getText()).title; } catch (e) { t = ''; }
-    return (String(t || 'flow').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'flow') + '.flow.json';
+    return (String(t || 'flow').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'flow');
   }
 
   function handle(r, retry, what) {
@@ -70,7 +69,7 @@
     saveAs: function () {
       var n = normalize(host.askName(name || suggest()));
       if (!n) return Promise.resolve({ ok: false, kind: 'cancelled' });
-      if (!NAME_RE.test(n)) { host.notify('Not saved: use letters, digits, dot, dash or underscore, ending in .flow.json'); return Promise.resolve({ ok: false, kind: 'badname' }); }
+      if (!NAME_RE.test(n)) { host.notify('Not saved: use letters, digits, dot, dash or underscore'); return Promise.resolve({ ok: false, kind: 'badname' }); }
       return gw.save(n, host.getText(), { create: true }).then(function (r) {
         if (!r.ok && r.kind === 'conflict') {
           host.notify('Not saved: ' + n + ' already exists. Choose another name.');
