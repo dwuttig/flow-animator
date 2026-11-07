@@ -1,0 +1,559 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flow animator</title>
+<link rel="icon" href="data:,">
+<style>
+:root{color-scheme:light dark;--bg:#fff;--text:#1f1e1d;--text2:#5f5e5a;--line:rgba(0,0,0,.14);--card:#f5f4ef;--edge:#8a8982;--hot:#EF9F27;--hot-d:#854F0B;--done:#BA7517;--bad:#A32D2D;--bad-bg:#FCEBEB;--warn:#633806;--warn-bg:#FAEEDA}
+@media (prefers-color-scheme:dark){:root{--bg:#1f1e1d;--text:#eeece6;--text2:#b4b2a9;--line:rgba(255,255,255,.18);--card:#2a2927;--edge:#888780;--bad:#F7C1C1;--bad-bg:#501313;--warn:#FAC775;--warn-bg:#412402}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif}
+#app{max-width:1120px;margin:0 auto;padding:20px 24px 40px}
+header{display:flex;gap:16px;justify-content:space-between;align-items:flex-start;flex-wrap:wrap}
+h1{font-size:22px;font-weight:500;margin:0}
+#desc{margin:4px 0 0;color:var(--text2);max-width:70ch}
+#src{margin:4px 0 0;font-size:12px;color:var(--text2)}
+button{font:inherit;font-size:13px;color:var(--text);background:transparent;border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer}
+button:hover{background:var(--card)}
+button:focus-visible,input:focus-visible,li[tabindex]:focus-visible{outline:2px solid var(--hot);outline-offset:2px}
+.tools{display:flex;gap:8px;flex-wrap:wrap}
+#issues{margin:16px 0 0;border-radius:8px;padding:10px 14px;font-size:13px}
+#issues.bad{background:var(--bad-bg);color:var(--bad)}
+#issues.warn{background:var(--warn-bg);color:var(--warn)}
+#issues .ihead{font-weight:500}
+#issues ul{margin:6px 0 0;padding-left:18px}
+#issues code{font:12px ui-monospace,Menlo,Consolas,monospace;margin-right:6px}
+#stage{margin:20px 0 4px;text-align:center;overflow-x:auto}
+#svg{max-width:100%;height:auto;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+.edge{fill:none;stroke:var(--edge);stroke-width:1.5;transition:stroke .2s}
+.k-response{stroke-dasharray:6 4}
+.k-async,.k-event{stroke-dasharray:2 4;stroke-linecap:round}
+.edge.done{stroke:var(--done);opacity:.75}
+.edge.active{stroke:var(--hot);stroke-width:2.75;opacity:1}
+.body{fill:var(--fill);stroke:var(--stroke);stroke-width:.75;transition:stroke .2s}
+.lip{fill:none;stroke:var(--stroke);stroke-width:.75}
+.node.hl .body{stroke:var(--hot);stroke-width:2.5}
+.lbl{fill:var(--title);font-size:14px;font-weight:500}
+.sub{fill:var(--sub);font-size:12px}
+.pkt{fill:var(--hot);stroke:var(--hot-d);stroke-width:1}
+.pkt.resp{fill:var(--bg)}
+#legend{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;font-size:12px;color:var(--text2);min-height:8px}
+#legend .chip{display:inline-flex;align-items:center;gap:6px}
+#legend i{width:12px;height:12px;border-radius:3px;background:var(--fill);border:1px solid var(--stroke)}
+#cap{margin:12px auto 0;max-width:820px;background:var(--card);border-radius:12px;padding:12px 16px;min-height:84px}
+#cap .line+.line{margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+#cap .t{font-weight:500}
+#cap .route{color:var(--text2);font-size:13px;margin-left:6px}
+#cap .d{color:var(--text2);margin-top:2px}
+#cap code{display:inline-block;margin-top:4px;font:12px ui-monospace,Menlo,Consolas,monospace;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:1px 8px}
+#controls{display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;margin:14px 0 4px;font-size:13px;color:var(--text2)}
+#controls input[type=range]{accent-color:var(--hot)}
+#scrub{width:200px}
+#spd{width:90px}
+#steps{list-style:none;counter-reset:s;margin:14px auto 0;padding:0;max-width:820px}
+#steps li{counter-increment:s;display:flex;gap:10px;padding:5px 10px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--text2);border-left:3px solid transparent}
+#steps li::before{content:counter(s);min-width:18px;text-align:right;color:var(--text2)}
+#steps li.par::before{content:"+"}
+#steps li:hover{background:var(--card)}
+#steps li.past{color:var(--text)}
+#steps li.active{background:var(--card);color:var(--text);border-left-color:var(--hot);font-weight:500}
+#drop{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45);color:#fff;font-size:20px;z-index:10}
+#drop[hidden]{display:none}
+dialog{width:min(640px,92vw);border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--text);padding:16px}
+dialog::backdrop{background:rgba(0,0,0,.4)}
+dialog textarea{width:100%;height:260px;font:12px ui-monospace,Menlo,Consolas,monospace;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px}
+dialog .row{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+@media (prefers-reduced-motion:reduce){.edge,.body{transition:none}}
+</style>
+<style id="pal"></style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div>
+      <h1 id="title">Flow animator</h1>
+      <p id="desc"></p>
+      <p id="src"></p>
+    </div>
+    <div class="tools">
+      <button id="openBtn" type="button">Open file…</button>
+      <button id="pasteBtn" type="button">Paste JSON…</button>
+      <button id="sampleBtn" type="button">Built-in example</button>
+      <input id="file" type="file" accept=".json,application/json" hidden>
+    </div>
+  </header>
+
+  <section id="issues" hidden aria-live="polite"></section>
+
+  <section id="stage"><svg id="svg" role="img" aria-label="Animated flow diagram"></svg></section>
+  <div id="legend"></div>
+
+  <section id="cap" aria-live="polite"></section>
+
+  <section id="controls">
+    <button id="restart" type="button">Restart</button>
+    <button id="prev" type="button">Prev</button>
+    <button id="play" type="button">Pause</button>
+    <button id="next" type="button">Next</button>
+    <input id="scrub" type="range" min="0" max="0" value="0" aria-label="Step">
+    <span id="count">1 / 1</span>
+    <label>Speed <input id="spd" type="range" min="0.5" max="3" step="0.5" value="1"> <span id="spdl">1x</span></label>
+    <label><input id="loop" type="checkbox" checked> Loop</label>
+    <label><input id="trail" type="checkbox" checked> Trail</label>
+  </section>
+
+  <ol id="steps"></ol>
+</div>
+
+<div id="drop" hidden>Drop a .flow.json file to animate it</div>
+
+<dialog id="dlg">
+  <form method="dialog">
+    <label for="ta" class="sr">Flow JSON</label>
+    <textarea id="ta" spellcheck="false" placeholder='{ "format": "flow-animator/1", "nodes": [ ... ], "steps": [ ... ] }'></textarea>
+    <div class="row">
+      <button value="cancel">Cancel</button>
+      <button id="renderBtn" value="ok">Render</button>
+    </div>
+  </form>
+</dialog>
+
+<noscript>This tool needs JavaScript.</noscript>
+
+<script src="flow-core.js"></script>
+<script id="sample-flow" type="application/json">{
+  "$schema": "../flow.schema.json",
+  "format": "flow-animator/1",
+  "title": "Order submission",
+  "description": "A client submits an order. The service stores it and hands the slow work to a background worker.",
+  "groups": [
+    { "id": "client", "label": "Client", "color": "gray" },
+    { "id": "sync", "label": "Request path", "color": "purple" },
+    { "id": "async", "label": "Background processing", "color": "teal" },
+    { "id": "external", "label": "External", "color": "coral" }
+  ],
+  "nodes": [
+    { "id": "client", "label": "Client", "subtitle": "WPF app", "group": "client" },
+    { "id": "api", "label": "API gateway", "subtitle": "Auth, routing", "group": "sync" },
+    { "id": "orders", "label": "Order service", "subtitle": "Business logic", "group": "sync" },
+    { "id": "db", "label": "Database", "subtitle": "Orders table", "shape": "database", "group": "client", "col": 3, "row": 0 },
+    { "id": "queue", "label": "Message queue", "subtitle": "OrderCreated events", "shape": "queue", "group": "async", "col": 3, "row": 1 },
+    { "id": "worker", "label": "Worker", "subtitle": "Background jobs", "group": "async", "col": 4, "row": 1 },
+    { "id": "mail", "label": "Email provider", "subtitle": "SMTP relay", "group": "external", "col": 4, "row": 0 }
+  ],
+  "steps": [
+    { "from": "client", "to": "api", "label": "Submit order", "detail": "The user presses Submit; the client sends the order over HTTPS.", "payload": "POST /orders" },
+    { "from": "api", "to": "orders", "label": "Forward request", "detail": "The gateway validates the token and routes the call to the order service." },
+    { "from": "orders", "to": "db", "label": "Persist order", "detail": "The order is saved with status 'received'.", "payload": "INSERT INTO orders" },
+    { "from": "orders", "to": "queue", "label": "Publish event", "kind": "async", "detail": "Slow work is deferred: an OrderCreated event is queued.", "payload": "OrderCreated { id }" },
+    { "from": "orders", "to": "api", "label": "Return result", "kind": "response", "detail": "The service answers without waiting for the worker.", "payload": "201 Created" },
+    { "from": "api", "to": "client", "label": "Confirm to user", "kind": "response", "detail": "The client shows the confirmation." },
+    { "from": "queue", "to": "worker", "label": "Deliver event", "kind": "async", "detail": "The worker picks up the event from the queue." },
+    { "from": "worker", "to": "db", "label": "Update status", "detail": "Status changes to 'processing'.", "payload": "UPDATE orders" },
+    { "from": "worker", "to": "mail", "label": "Send confirmation email", "kind": "async", "together": true, "detail": "Runs in parallel with the status update." }
+  ]
+}</script>
+<script>
+(function () {
+  'use strict';
+  var C = window.FlowCore;
+  var NS = 'http://www.w3.org/2000/svg';
+
+  /* palette: [light fill, light stroke, light title, dark stroke, dark title]; dark fill = light title */
+  var PAL = {
+    gray:   ['#F1EFE8', '#5F5E5A', '#444441', '#B4B2A9', '#D3D1C7'],
+    purple: ['#EEEDFE', '#534AB7', '#3C3489', '#AFA9EC', '#CECBF6'],
+    teal:   ['#E1F5EE', '#0F6E56', '#085041', '#5DCAA5', '#9FE1CB'],
+    coral:  ['#FAECE7', '#993C1D', '#712B13', '#F0997B', '#F5C4B3'],
+    pink:   ['#FBEAF0', '#993556', '#72243E', '#ED93B1', '#F4C0D1'],
+    blue:   ['#E6F1FB', '#185FA5', '#0C447C', '#85B7EB', '#B5D4F4'],
+    green:  ['#EAF3DE', '#3B6D11', '#27500A', '#97C459', '#C0DD97'],
+    amber:  ['#FAEEDA', '#854F0B', '#633806', '#EF9F27', '#FAC775'],
+    red:    ['#FCEBEB', '#A32D2D', '#791F1F', '#F09595', '#F7C1C1']
+  };
+  (function () {
+    var light = '', dark = '';
+    Object.keys(PAL).forEach(function (k) {
+      var p = PAL[k];
+      light += '.c-' + k + '{--fill:' + p[0] + ';--stroke:' + p[1] + ';--title:' + p[2] + ';--sub:' + p[1] + '}';
+      dark += '.c-' + k + '{--fill:' + p[2] + ';--stroke:' + p[3] + ';--title:' + p[4] + ';--sub:' + p[3] + '}';
+    });
+    document.getElementById('pal').textContent = light + '@media (prefers-color-scheme:dark){' + dark + '}';
+  })();
+
+  function $(id) { return document.getElementById(id); }
+  function el(tag, attrs, parent) {
+    var e = document.createElementNS(NS, tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function h(tag, cls, text, parent) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined && text !== null) e.textContent = text;
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function fit(str, px, per) {
+    var max = Math.max(3, Math.floor(px / per));
+    return str.length > max ? str.slice(0, max - 1) + '…' : str;
+  }
+
+  var S = {
+    model: null, geo: null, nodeEls: {}, edgeEls: {}, lens: {}, packets: [], liEls: [],
+    idx: 0, elapsed: 0, arrived: false, playing: true, finished: false,
+    speed: 1, DUR: 1300, HOLD: 500, last: null, name: ''
+  };
+  S.reduced = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  S.playing = !S.reduced;
+
+  /* ---------- drawing ---------- */
+
+  function drawNode(parent, n, r) {
+    var g = el('g', { 'class': 'node c-' + n.color }, parent);
+    var t = el('title', {}, g);
+    t.textContent = n.label + (n.subtitle ? ' - ' + n.subtitle : '');
+    var cx = r.x + r.w / 2, cy = r.y + r.h / 2, avail = r.w - 20;
+    if (n.shape === 'database') {
+      var ry = 8, rx = r.w / 2;
+      el('path', { 'class': 'body', d: 'M' + r.x + ' ' + (r.y + ry) + ' A' + rx + ' ' + ry + ' 0 0 1 ' + (r.x + r.w) + ' ' + (r.y + ry) +
+        ' V' + (r.y + r.h - ry) + ' A' + rx + ' ' + ry + ' 0 0 1 ' + r.x + ' ' + (r.y + r.h - ry) + ' Z' }, g);
+      el('path', { 'class': 'lip', d: 'M' + r.x + ' ' + (r.y + ry) + ' A' + rx + ' ' + ry + ' 0 0 0 ' + (r.x + r.w) + ' ' + (r.y + ry) }, g);
+      cy += 5;
+    } else {
+      el('rect', { 'class': 'body', x: r.x, y: r.y, width: r.w, height: r.h, rx: 8 }, g);
+      if (n.shape === 'queue') {
+        [26, 18, 10].forEach(function (d) {
+          el('line', { 'class': 'lip', x1: r.x + r.w - d, y1: r.y + 14, x2: r.x + r.w - d, y2: r.y + r.h - 14 }, g);
+        });
+        cx = r.x + (r.w - 30) / 2; avail = r.w - 50;
+      }
+    }
+    var lbl = el('text', { 'class': 'lbl', x: cx, y: cy - (n.subtitle ? 8 : 0), 'text-anchor': 'middle', 'dominant-baseline': 'central' }, g);
+    lbl.textContent = fit(n.label, avail, 8.4);
+    if (n.subtitle) {
+      var sub = el('text', { 'class': 'sub', x: cx, y: cy + 10, 'text-anchor': 'middle', 'dominant-baseline': 'central' }, g);
+      sub.textContent = fit(n.subtitle, avail, 6.8);
+    }
+    return g;
+  }
+
+  function render(model, geo) {
+    var svg = $('svg');
+    svg.textContent = '';
+    svg.setAttribute('viewBox', '0 0 ' + geo.width + ' ' + geo.height);
+    svg.style.width = geo.width + 'px';
+    svg.setAttribute('aria-label', model.title + ': animated flow diagram');
+
+    var defs = el('defs', {}, svg);
+    var mk = el('marker', { id: 'arr', viewBox: '0 0 10 10', refX: 8, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' }, defs);
+    el('path', { d: 'M2 1L8 5L2 9', fill: 'none', stroke: 'context-stroke', 'stroke-width': 1.5, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, mk);
+
+    var gE = el('g', {}, svg), gN = el('g', {}, svg), gP = el('g', {}, svg);
+    S.edgeEls = {}; S.nodeEls = {}; S.lens = {}; S.packets = [];
+    geo.edges.forEach(function (e) {
+      var p = el('path', { 'class': 'edge k-' + e.kind, d: e.d, 'marker-end': 'url(#arr)' }, gE);
+      S.edgeEls[e.id] = p;
+      S.lens[e.id] = p.getTotalLength();
+    });
+    model.nodes.forEach(function (n) { S.nodeEls[n.id] = drawNode(gN, n, geo.nodes[n.id]); });
+    S.gP = gP;
+
+    // legend
+    var lg = $('legend'); lg.textContent = '';
+    if (model.groups.length > 1) {
+      model.groups.forEach(function (g) {
+        var c = h('span', 'chip c-' + g.color, null, lg);
+        h('i', '', null, c);
+        c.appendChild(document.createTextNode(g.label));
+      });
+    }
+    var kinds = [];
+    model.steps.forEach(function (s) { if (kinds.indexOf(s.kind) < 0) kinds.push(s.kind); });
+    if (kinds.length > 1) {
+      var names = { sync: 'Call', response: 'Response', async: 'Async', event: 'Event' };
+      kinds.forEach(function (k) {
+        var c = h('span', 'chip', null, lg);
+        var s = el('svg', { width: 30, height: 8, viewBox: '0 0 30 8' }, c);
+        el('line', { 'class': 'edge k-' + k, x1: 1, y1: 4, x2: 29, y2: 4 }, s);
+        c.appendChild(document.createTextNode(names[k] || k));
+      });
+    }
+
+    // step list
+    var ol = $('steps'); ol.textContent = '';
+    S.liEls = model.steps.map(function (s, i) {
+      var li = h('li', s.together ? 'par' : '', null, ol);
+      li.tabIndex = 0;
+      var from = nodeLabel(model, s.from), to = nodeLabel(model, s.to);
+      li.appendChild(document.createTextNode(s.label + '  (' + from + ' → ' + to + ')'));
+      li.addEventListener('click', function () { jump(beatOf(i), true); });
+      li.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); jump(beatOf(i), true); }
+      });
+      return li;
+    });
+
+    $('scrub').max = String(model.beats.length - 1);
+    $('title').textContent = model.title;
+    $('desc').textContent = model.description;
+    document.title = model.title + ' · Flow animator';
+  }
+
+  function nodeLabel(model, id) {
+    for (var i = 0; i < model.nodes.length; i++) if (model.nodes[i].id === id) return model.nodes[i].label;
+    return id;
+  }
+  function beatOf(stepIdx) {
+    var b = S.model.beats;
+    for (var i = 0; i < b.length; i++) if (b[i].indexOf(stepIdx) >= 0) return i;
+    return 0;
+  }
+
+  /* ---------- animation state ---------- */
+
+  function clearPackets() { S.packets.forEach(function (p) { p.el.remove(); }); S.packets = []; }
+
+  function begin(i) {
+    S.idx = i; S.elapsed = 0; S.arrived = false;
+    clearPackets();
+    S.model.beats[i].forEach(function (si) {
+      var s = S.model.steps[si];
+      var c = el('circle', { 'class': 'pkt' + (s.kind === 'response' ? ' resp' : ''), r: 6, cx: -50, cy: -50 }, S.gP);
+      S.packets.push({ el: c, edge: s.from + '>' + s.to });
+    });
+    caption();
+    paint();
+    movePackets(0);
+  }
+
+  function movePackets(t) {
+    var e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    S.packets.forEach(function (p) {
+      var path = S.edgeEls[p.edge], len = S.lens[p.edge];
+      var pt = path.getPointAtLength(len * e);
+      p.el.setAttribute('cx', pt.x); p.el.setAttribute('cy', pt.y);
+      p.el.style.display = '';
+    });
+  }
+  function hidePackets() { S.packets.forEach(function (p) { p.el.style.display = 'none'; }); }
+
+  function paint() {
+    var m = S.model, beat = m.beats[S.idx], act = {}, hl = {}, done = {};
+    beat.forEach(function (si) {
+      var s = m.steps[si];
+      act[s.from + '>' + s.to] = true; hl[s.from] = true;
+      if (S.arrived) hl[s.to] = true;
+    });
+    if ($('trail').checked) {
+      for (var b = 0; b < S.idx; b++) m.beats[b].forEach(function (si) { done[m.steps[si].from + '>' + m.steps[si].to] = true; });
+    }
+    Object.keys(S.edgeEls).forEach(function (id) {
+      S.edgeEls[id].classList.toggle('active', !!act[id]);
+      S.edgeEls[id].classList.toggle('done', !act[id] && !!done[id]);
+    });
+    Object.keys(S.nodeEls).forEach(function (id) { S.nodeEls[id].classList.toggle('hl', !!hl[id]); });
+    S.liEls.forEach(function (li, si) {
+      var bi = beatOf(si);
+      li.classList.toggle('active', bi === S.idx);
+      li.classList.toggle('past', bi < S.idx);
+    });
+    $('scrub').value = String(S.idx);
+    $('count').textContent = (S.idx + 1) + ' / ' + m.beats.length;
+    $('play').textContent = S.playing ? 'Pause' : (S.finished ? 'Replay' : 'Play');
+  }
+
+  function caption() {
+    var m = S.model, box = $('cap');
+    box.textContent = '';
+    m.beats[S.idx].forEach(function (si) {
+      var s = m.steps[si];
+      var line = h('div', 'line', null, box);
+      var head = h('div', null, null, line);
+      h('span', 't', (si + 1) + '. ' + s.label, head);
+      h('span', 'route', nodeLabel(m, s.from) + ' → ' + nodeLabel(m, s.to), head);
+      if (s.detail) h('div', 'd', s.detail, line);
+      if (s.payload) h('code', null, s.payload, line);
+    });
+  }
+
+  function jump(i, arrived) {
+    if (!S.model) return;
+    var n = S.model.beats.length;
+    i = ((i % n) + n) % n;
+    S.finished = false;
+    begin(i);
+    if (arrived) { S.elapsed = S.DUR; S.arrived = true; hidePackets(); paint(); }
+  }
+
+  function frame(now) {
+    if (S.last === null) S.last = now;
+    var dt = Math.min(now - S.last, 100); S.last = now;
+    if (S.model && S.playing) {
+      S.elapsed += dt * S.speed;
+      if (S.elapsed < S.DUR) {
+        movePackets(S.elapsed / S.DUR);
+      } else if (S.elapsed < S.DUR + S.HOLD) {
+        if (!S.arrived) { S.arrived = true; hidePackets(); paint(); }
+      } else if (S.idx < S.model.beats.length - 1) {
+        begin(S.idx + 1);
+      } else if ($('loop').checked) {
+        begin(0);
+      } else {
+        S.playing = false; S.finished = true; paint();
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+
+  function togglePlay() {
+    if (!S.model) return;
+    if (S.finished) { S.finished = false; begin(0); S.playing = true; }
+    else S.playing = !S.playing;
+    paint();
+  }
+
+  /* ---------- loading ---------- */
+
+  function showIssues(errors, warnings, name, kept) {
+    var box = $('issues');
+    box.textContent = '';
+    if (!errors.length && !warnings.length) { box.hidden = true; return; }
+    box.hidden = false;
+    box.className = errors.length ? 'bad' : 'warn';
+    var head;
+    if (errors.length) {
+      head = 'Could not load ' + name + ': ' + errors.length + ' error' + (errors.length > 1 ? 's' : '') +
+        (warnings.length ? ' and ' + warnings.length + ' warning' + (warnings.length > 1 ? 's' : '') : '') +
+        (kept ? ' (still showing the previous diagram)' : '');
+    } else {
+      head = name + ' loaded with ' + warnings.length + ' warning' + (warnings.length > 1 ? 's' : '');
+    }
+    h('div', 'ihead', head, box);
+    var ul = h('ul', null, null, box);
+    errors.concat(warnings).forEach(function (it) {
+      var li = h('li', null, null, ul);
+      h('code', null, it.path, li);
+      li.appendChild(document.createTextNode(it.message));
+    });
+  }
+
+  function loadText(text, name) {
+    var res = C.load(text);
+    name = name || 'input';
+    if (!res.ok) {
+      showIssues(res.errors, res.warnings, name, !!S.model);
+      return res;
+    }
+    S.name = name;
+    S.model = res.model; S.geo = res.geometry;
+    render(res.model, res.geometry);
+    $('src').textContent = 'Source: ' + name;
+    showIssues([], res.warnings, name, false);
+    S.finished = false;
+    S.playing = !S.reduced; // a freshly loaded flow starts playing
+    begin(0);
+    return res;
+  }
+
+  function loadFromUrl(url) {
+    return fetch(url, { cache: 'no-store' }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.text();
+    });
+  }
+
+  function fetchFailed(src, e) {
+    var msg = 'Could not fetch ' + src + ': ' + (e && e.message ? e.message : e) + '.';
+    if (location.protocol === 'file:') {
+      msg += ' Browsers block fetch() on file:// pages. Serve this folder (python3 -m http.server) or use "Open file..." instead.';
+    }
+    showIssues([{ path: 'src', message: msg + ' Showing the built-in example instead.' }], [], src, false);
+  }
+
+  /* ---------- wiring ---------- */
+
+  $('play').addEventListener('click', togglePlay);
+  $('next').addEventListener('click', function () { jump(S.idx + 1, true); });
+  $('prev').addEventListener('click', function () { jump(S.idx - 1, true); });
+  $('restart').addEventListener('click', function () { jump(0, false); });
+  $('scrub').addEventListener('input', function (e) { S.playing = false; jump(+e.target.value, true); });
+  $('spd').addEventListener('input', function (e) { S.speed = parseFloat(e.target.value); $('spdl').textContent = S.speed + 'x'; });
+  $('trail').addEventListener('change', function () { if (S.model) paint(); });
+
+  $('openBtn').addEventListener('click', function () { $('file').click(); });
+  $('file').addEventListener('change', function (e) {
+    var f = e.target.files[0]; if (!f) return;
+    f.text().then(function (t) { loadText(t, f.name); });
+    e.target.value = '';
+  });
+  $('pasteBtn').addEventListener('click', function () { $('dlg').showModal(); });
+  $('dlg').addEventListener('close', function () {
+    if ($('dlg').returnValue === 'ok' && $('ta').value.trim()) loadText($('ta').value, 'pasted JSON');
+  });
+  $('sampleBtn').addEventListener('click', function () {
+    loadText($('sample-flow').textContent, 'built-in example');
+  });
+
+  window.addEventListener('dragenter', function (e) { e.preventDefault(); $('drop').hidden = false; });
+  window.addEventListener('dragover', function (e) { e.preventDefault(); });
+  $('drop').addEventListener('dragleave', function () { $('drop').hidden = true; });
+  window.addEventListener('drop', function (e) {
+    e.preventDefault(); $('drop').hidden = true;
+    var f = e.dataTransfer && e.dataTransfer.files[0];
+    if (f) f.text().then(function (t) { loadText(t, f.name); });
+  });
+
+  window.addEventListener('keydown', function (e) {
+    var tag = e.target && e.target.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'BUTTON' || tag === 'LI') return;
+    if (e.key === ' ') { e.preventDefault(); togglePlay(); }
+    else if (e.key === 'ArrowRight') jump(S.idx + 1, true);
+    else if (e.key === 'ArrowLeft') jump(S.idx - 1, true);
+    else if (e.key === 'Home') jump(0, false);
+  });
+
+  // public API for scripts, tests and agents driving a browser
+  window.FlowAnimator = {
+    load: function (input) {
+      return loadText(typeof input === 'string' ? input : JSON.stringify(input), 'API call');
+    },
+    validate: function (input) {
+      var p = typeof input === 'string' ? C.parse(input) : { doc: input, errors: [] };
+      return p.errors.length ? { errors: p.errors, warnings: [] } : C.validate(p.doc);
+    },
+    state: function () {
+      return { title: S.model && S.model.title, beat: S.idx, beats: S.model && S.model.beats.length, playing: S.playing, arrived: S.arrived };
+    },
+    jump: jump
+  };
+
+  /* ---------- start ---------- */
+
+  var params = new URLSearchParams(location.search);
+  var src = params.get('src');
+  var embedded = $('flow-data');
+  requestAnimationFrame(frame);
+  if (src) {
+    loadFromUrl(src).then(function (t) {
+      var last = t;
+      loadText(t, src);
+      if (params.get('watch')) {
+        setInterval(function () {
+          loadFromUrl(src).then(function (nt) { if (nt !== last) { last = nt; loadText(nt, src); } }).catch(function () {});
+        }, 1500);
+      }
+    }).catch(function (e) { loadText($('sample-flow').textContent, 'built-in example'); fetchFailed(src, e); });
+  } else if (embedded) {
+    loadText(embedded.textContent, 'embedded flow');
+  } else {
+    loadText($('sample-flow').textContent, 'built-in example');
+  }
+})();
+</script>
+</body>
+</html>
