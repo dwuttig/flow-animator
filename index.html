@@ -370,6 +370,44 @@ summary::-webkit-details-marker{display:none}
     return g;
   }
 
+  function applyView() {
+    var v = S.view;
+    S.vp.setAttribute('transform', 'translate(' + v.x + ' ' + v.y + ') scale(' + v.k + ')');
+  }
+  function initPanZoom(svg) {
+    if (svg._pz) return;
+    svg._pz = true;
+    function pt(e) {
+      var p = svg.createSVGPoint(); p.x = e.clientX; p.y = e.clientY;
+      return p.matrixTransform(svg.getScreenCTM().inverse());
+    }
+    svg.addEventListener('wheel', function (e) {
+      e.preventDefault();
+      var v = S.view, p = pt(e), k = Math.min(8, Math.max(0.2, v.k * Math.exp(-e.deltaY * 0.0015)));
+      v.x = p.x - (p.x - v.x) * k / v.k; v.y = p.y - (p.y - v.y) * k / v.k; v.k = k;
+      applyView();
+    }, { passive: false });
+    var drag = null, moved = false;
+    svg.addEventListener('pointerdown', function (e) {
+      if (e.button !== 0) return;
+      drag = { x: e.clientX, y: e.clientY, vx: S.view.x, vy: S.view.y, id: e.pointerId }; moved = false;
+    });
+    svg.addEventListener('pointermove', function (e) {
+      if (!drag) return;
+      var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      if (!moved && Math.hypot(dx, dy) < 4) return;
+      if (!moved) { moved = true; svg.setPointerCapture(drag.id); svg.style.cursor = 'grabbing'; }
+      var m = svg.getScreenCTM();
+      S.view.x = drag.vx + dx / m.a; S.view.y = drag.vy + dy / m.d;
+      applyView();
+    });
+    function end() { drag = null; svg.style.cursor = ''; }
+    svg.addEventListener('pointerup', end);
+    svg.addEventListener('pointercancel', end);
+    svg.addEventListener('click', function (e) { if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; } }, true);
+    svg.addEventListener('dblclick', function () { S.view = { k: 1, x: 0, y: 0 }; applyView(); });
+  }
+
   function render(model, geo) {
     var svg = $('svg');
     svg.textContent = '';
@@ -379,14 +417,23 @@ summary::-webkit-details-marker{display:none}
     svg.setAttribute('aria-label', model.title + ': animated flow diagram');
 
     var defs = el('defs', {}, svg);
-    var mk = el('marker', { id: 'arr', viewBox: '0 0 10 10', refX: 8, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' }, defs);
-    el('path', { d: 'M2 1L8 5L2 9', fill: 'none', stroke: 'context-stroke', 'stroke-width': 1.5, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, mk);
+    var mk = el('marker', { id: 'arr', viewBox: '0 0 10 10', refX: 1, refY: 5, markerUnits: 'userSpaceOnUse', markerWidth: 10, markerHeight: 10, orient: 'auto-start-reverse', overflow: 'visible' }, defs);
+    el('path', { d: 'M1 1L9 5L1 9z', fill: 'context-stroke', stroke: 'context-stroke', 'stroke-width': 1, 'stroke-linejoin': 'round', 'stroke-dasharray': 'none' }, mk);
 
-    var gE = el('g', {}, svg), gN = el('g', {}, svg), gP = el('g', {}, svg);
+    var vp = el('g', { id: 'vp' }, svg);
+    var gE = el('g', {}, vp), gN = el('g', {}, vp), gP = el('g', {}, vp);
+    S.view = { k: 1, x: 0, y: 0 }; S.vp = vp;
+    initPanZoom(svg);
     S.edgeEls = {}; S.nodeEls = {}; S.lens = {}; S.packets = [];
     geo.edges.forEach(function (e) {
       var p = el('path', { 'class': 'edge k-' + e.kind, d: e.d, 'marker-end': 'url(#arr)' }, gE);
       S.edgeEls[e.id] = p;
+      var gap = 3, full = p.getTotalLength(), cut = full - 8 - 2 * gap;
+      if (cut > 4) {
+        var n = Math.max(2, Math.ceil(cut / 3)), pts = [];
+        for (var i = 0; i <= n; i++) { var q = p.getPointAtLength(gap + cut * i / n); pts.push(q.x.toFixed(2) + ' ' + q.y.toFixed(2)); }
+        p.setAttribute('d', 'M' + pts.join(' L'));
+      }
       S.lens[e.id] = p.getTotalLength();
     });
     model.nodes.forEach(function (n) { S.nodeEls[n.id] = drawNode(gN, n, geo.nodes[n.id]); });
@@ -942,6 +989,7 @@ summary::-webkit-details-marker{display:none}
     if (flowParam) {
       return openStored(flowParam).then(function (r) {
         if (!r.ok) { loadLocal($('sample-flow').textContent, 'built-in example'); return; }
+        restoreSession(flowParam.replace(/\.flow\.json$/i, ''));
         if (params.get('watch')) watchStored(flowParam);
       });
     }
@@ -968,4 +1016,3 @@ summary::-webkit-details-marker{display:none}
 </script>
 </body>
 </html>
-        restoreSession(flowParam.replace(/\.flow\.json$/i, ''));
