@@ -25,13 +25,20 @@ if (!res.ok) {
 }
 
 var html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
-var core = fs.readFileSync(path.join(__dirname, 'flow-core.js'), 'utf8');
+// Scripts in the order index.html loads them (dependency order).
+var SCRIPTS = ['flow-core.js', 'src/flow-library/apply-edit/apply-edit.js', 'src/playback/edit-flow/edit-flow.js'];
 
 function safe(s) { return s.replace(/<\//g, '<\\/'); } // keep "</script" out of inline data
 
-var coreTag = '<script src="flow-core.js"></script>';
-if (html.indexOf(coreTag) < 0) { console.error('index.html no longer contains ' + coreTag); process.exit(1); }
-html = html.replace(coreTag, function () { return '<script>\n' + safe(core) + '\n</script>\n<script id="flow-data" type="application/json">' + safe(JSON.stringify(JSON.parse(flowText))) + '</script>'; });
+var tags = SCRIPTS.map(function (f) { return '<script src="' + f + '"></script>'; });
+var coreTag = tags.join('\n');
+if (html.indexOf(coreTag) < 0) { console.error('index.html no longer contains the script tags ' + coreTag); process.exit(1); }
+html = html.replace(coreTag, function () {
+  var inline = SCRIPTS.map(function (f) {
+    return '<script>\n' + safe(fs.readFileSync(path.join(__dirname, f), 'utf8')) + '\n</script>';
+  }).join('\n');
+  return inline + '\n<script id="flow-data" type="application/json">' + safe(JSON.stringify(JSON.parse(flowText))) + '</script>';
+});
 
 fs.writeFileSync(out, html);
 console.log('wrote ' + out + ' (' + Math.round(html.length / 1024) + ' KB), self-contained');

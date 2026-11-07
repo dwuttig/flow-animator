@@ -29,9 +29,10 @@ A person or AI agent describes a system as a **Flow** (Nodes, Groups, ordered St
 - **Flow Modeling → everyone**: upstream. Others are *conformists*: they consume the model and the published format as is and never redefine it.
 - **Layout → Playback**: customer/supplier. Playback consumes Geometry; Layout does not know about Playback.
 - **Flow Library → Flow Modeling**: calls the `validate` public API for every Edit; never re-implements rules. Its MCP layer is an *open host service* with its own vocabulary of Tools, translated to Edits by an anti-corruption mapping in the slice.
+- **Playback → Flow Library (apply-edit only)**: editor mode reuses the pure Edit engine so Edits behave the same in the browser and over MCP. Playback never touches the Flow store or MCP transport.
 - **Distribution** only wires and packages; it contains no domain rules.
 
-Dependency rule: contexts depend only on another context's public API (its `index` entry), never on internals. No cycles. Allowed edges: Layout → Modeling, Playback → Modeling/Layout, Library → Modeling, Distribution → any public API. Modeling depends on nothing.
+Dependency rule: contexts depend only on another context's public API (its `index` entry), never on internals. No cycles. Allowed edges: Layout → Modeling, Playback → Modeling/Layout, Playback → Library's pure `apply-edit` (editor mode), Library → Modeling, Distribution → any public API. Modeling depends on nothing.
 
 ## Vertical slices
 Inside a context, code is organised by use case (slice), not by technical layer. A slice holds everything for one capability: its input handling, domain logic, and tests. Shared kernel inside a context is allowed only for genuinely shared domain types.
@@ -39,7 +40,7 @@ Inside a context, code is organised by use case (slice), not by technical layer.
 Examples:
 - Flow Modeling: `parse-flow`, `validate-flow`, `derive-beats`
 - Layout: `layout-flow`, `route-edges`
-- Playback: `load-flow`, `play-flow`, `scrub-timeline`, `render-diagram`
+- Playback: `load-flow`, `play-flow`, `scrub-timeline`, `render-diagram`, `edit-flow`
 - Flow Library: `list-flows`, `read-flow`, `create-flow`, `add-node`, `add-step`, `move-step`... plus `mcp-transport`
 - Distribution: `bundle-standalone`, `validate-cli`, `docker-image`
 

@@ -65,6 +65,17 @@ dialog{width:min(640px,92vw);border:1px solid var(--line);border-radius:12px;bac
 dialog::backdrop{background:rgba(0,0,0,.4)}
 dialog textarea{width:100%;height:260px;font:12px ui-monospace,Menlo,Consolas,monospace;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px}
 dialog .row{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
+#editor{margin:16px 0 0;border:1px solid var(--line);border-radius:12px;padding:10px 14px;max-height:50vh;overflow:auto;font-size:13px}
+#editor[hidden]{display:none}
+.ebar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;position:sticky;top:-10px;background:var(--bg);padding:6px 0;z-index:1}
+.edirty{color:var(--warn);font-size:12px}
+.esec summary{cursor:pointer;font-weight:500;margin:8px 0 4px}
+.ebody{display:flex;flex-direction:column;gap:6px;align-items:flex-start;width:100%}
+.erow{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;padding:6px 0;border-top:1px solid var(--line);width:100%}
+.ef{display:flex;flex-direction:column;font-size:11px;color:var(--text2)}
+.ef input[type=text],.ef select{font:inherit;font-size:13px;color:var(--text);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:3px 6px;min-width:90px}
+.enum{min-width:30px;padding:3px 8px}
+#editBtn[aria-pressed=true]{background:var(--card);border-color:var(--hot)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (prefers-reduced-motion:reduce){.edge,.body{transition:none}}
 </style>
@@ -82,11 +93,14 @@ dialog .row{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
       <button id="openBtn" type="button">Open file…</button>
       <button id="pasteBtn" type="button">Paste JSON…</button>
       <button id="sampleBtn" type="button">Built-in example</button>
+      <button id="editBtn" type="button" aria-pressed="false">Edit</button>
       <input id="file" type="file" accept=".json,application/json" hidden>
     </div>
   </header>
 
   <section id="issues" hidden aria-live="polite"></section>
+
+  <section id="editor" hidden aria-label="Editor"></section>
 
   <section id="stage"><svg id="svg" role="img" aria-label="Animated flow diagram"></svg></section>
   <div id="legend"></div>
@@ -124,6 +138,8 @@ dialog .row{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
 <noscript>This tool needs JavaScript.</noscript>
 
 <script src="flow-core.js"></script>
+<script src="src/flow-library/apply-edit/apply-edit.js"></script>
+<script src="src/playback/edit-flow/edit-flow.js"></script>
 <script id="sample-flow" type="application/json">{
   "$schema": "../flow.schema.json",
   "format": "flow-animator/1",
@@ -417,6 +433,17 @@ dialog .row{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
     paint();
   }
 
+  /* ---------- editor mode (slice edit-flow) ---------- */
+
+  var editor = window.FlowEditor && window.FlowEdits ? window.FlowEditor.create({
+    getText: function () { return S.text || ''; },
+    show: function (text, name) { loadText(text, name); },
+    jumpToStep: function (i) { jump(beatOf(i), true); },
+    report: function (errors, warnings) { showIssues(errors, warnings, 'edit', true); },
+    pause: function () { S.playing = false; }
+  }, document, C, window.FlowEdits) : null;
+  function discardOk() { return !(editor && editor.isDirty()) || confirm('Discard unsaved edits?'); }
+
   /* ---------- loading ---------- */
 
   function showIssues(errors, warnings, name, kept) {
@@ -449,7 +476,7 @@ dialog .row{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
       showIssues(res.errors, res.warnings, name, !!S.model);
       return res;
     }
-    S.name = name;
+    S.name = name; S.text = text;
     S.model = res.model; S.geo = res.geometry;
     render(res.model, res.geometry);
     $('src').textContent = 'Source: ' + name;
@@ -457,6 +484,7 @@ dialog .row{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
     S.finished = false;
     S.playing = !S.reduced; // a freshly loaded flow starts playing
     begin(0);
+    if (editor) editor.onLoaded(text);
     return res;
   }
 
@@ -485,18 +513,27 @@ dialog .row{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
   $('spd').addEventListener('input', function (e) { S.speed = parseFloat(e.target.value); $('spdl').textContent = S.speed + 'x'; });
   $('trail').addEventListener('change', function () { if (S.model) paint(); });
 
-  $('openBtn').addEventListener('click', function () { $('file').click(); });
+  if (editor) {
+    editor.mount($('editor'));
+    $('editBtn').addEventListener('click', function () {
+      var on = editor.setActive(!editor.isActive());
+      $('editBtn').setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    window.addEventListener('beforeunload', function (e) { if (editor.isDirty()) { e.preventDefault(); e.returnValue = ''; } });
+  } else $('editBtn').hidden = true;
+
+  $('openBtn').addEventListener('click', function () { if (discardOk()) $('file').click(); });
   $('file').addEventListener('change', function (e) {
     var f = e.target.files[0]; if (!f) return;
     f.text().then(function (t) { loadText(t, f.name); });
     e.target.value = '';
   });
-  $('pasteBtn').addEventListener('click', function () { $('dlg').showModal(); });
+  $('pasteBtn').addEventListener('click', function () { if (discardOk()) $('dlg').showModal(); });
   $('dlg').addEventListener('close', function () {
     if ($('dlg').returnValue === 'ok' && $('ta').value.trim()) loadText($('ta').value, 'pasted JSON');
   });
   $('sampleBtn').addEventListener('click', function () {
-    loadText($('sample-flow').textContent, 'built-in example');
+    if (discardOk()) loadText($('sample-flow').textContent, 'built-in example');
   });
 
   window.addEventListener('dragenter', function (e) { e.preventDefault(); $('drop').hidden = false; });
@@ -505,7 +542,7 @@ dialog .row{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
   window.addEventListener('drop', function (e) {
     e.preventDefault(); $('drop').hidden = true;
     var f = e.dataTransfer && e.dataTransfer.files[0];
-    if (f) f.text().then(function (t) { loadText(t, f.name); });
+    if (f && discardOk()) f.text().then(function (t) { loadText(t, f.name); });
   });
 
   window.addEventListener('keydown', function (e) {
@@ -529,6 +566,7 @@ dialog .row{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
     state: function () {
       return { title: S.model && S.model.title, beat: S.idx, beats: S.model && S.model.beats.length, playing: S.playing, arrived: S.arrived };
     },
+    edit: function (op, args) { return editor ? editor.edit(op, args) : { ok: false, errors: [{ path: '', message: 'editor not available' }] }; },
     jump: jump
   };
 
@@ -544,7 +582,7 @@ dialog .row{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
       loadText(t, src);
       if (params.get('watch')) {
         setInterval(function () {
-          loadFromUrl(src).then(function (nt) { if (nt !== last) { last = nt; loadText(nt, src); } }).catch(function () {});
+          loadFromUrl(src).then(function (nt) { if (nt !== last && !(editor && editor.isDirty())) { last = nt; loadText(nt, src); } }).catch(function () {});
         }, 1500);
       }
     }).catch(function (e) { loadText($('sample-flow').textContent, 'built-in example'); fetchFailed(src, e); });
