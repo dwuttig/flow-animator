@@ -6,6 +6,7 @@
 FROM node:22-alpine AS mcp
 WORKDIR /app
 COPY flow-core.js flow-store.js mcp-server.js flow.schema.json README.md ./
+COPY src/flow-library/apply-edit/apply-edit.js ./src/flow-library/apply-edit/
 ENV FLOW_DIR=/flows MCP_HOST=0.0.0.0 PORT=8081
 # Flow files are shared with the viewer through this volume.
 VOLUME /flows
@@ -21,6 +22,8 @@ COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 
 WORKDIR /usr/share/nginx/html
 COPY index.html flow-core.js flow.schema.json ./
+COPY src/flow-library/apply-edit/apply-edit.js ./src/flow-library/apply-edit/
+COPY src/playback/edit-flow/edit-flow.js ./src/playback/edit-flow/
 COPY examples/ ./examples/
 
 # User flow files live here. Mount a volume to serve your own *.flow.json

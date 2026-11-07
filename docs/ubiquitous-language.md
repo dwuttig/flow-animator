@@ -25,6 +25,8 @@ One vocabulary for code, docs, specs, agents and conversation. If a word here an
 | **Playback** | The running animation of a Flow: play, pause, step, scrub, speed. |
 | **Packet** | The marker travelling along an Edge during a Step. |
 | **Trail** | The already-completed Steps, kept visible. |
+| **Editor mode** | Viewer mode with a panel to change the Flow through Edits. |
+| **Draft** | The Flow being edited in the browser, not yet downloaded. Every change is a validated Edit; undo/redo walks the Draft history. |
 
 ## Flow Library (supporting)
 | Term | Meaning |
