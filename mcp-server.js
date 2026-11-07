@@ -11,6 +11,9 @@
  *   MCP_TOKEN   if set, HTTP requests must send "Authorization: Bearer <token>"
  *   MCP_HOST    HTTP bind address (default 127.0.0.1; the Docker image sets 0.0.0.0)
  *   PORT        HTTP port if not given on the command line
+ *
+ * HTTP also serves the Flow API (same token): GET /api/flows, GET|PUT|DELETE /api/flows/<name>.
+ * See docs/features/flow-storage.md.
  */
 'use strict';
 var fs = require('fs');
@@ -64,25 +67,41 @@ var TOOLS = [
   { name: 'move_step', description: 'Move a step from one 0-based index to another.', inputSchema: obj({ index: INT, to_index: INT }, ['index', 'to_index']) }
 ];
 
+/* Optional optimistic-concurrency parameter on every Tool that writes. */
+var REVISION = { type: 'string', description: 'Revision of the flow you last read (from list_flows, read_flow with with_revision, or a previous write). If the file changed since, the write is rejected with a conflict. Omit for last-write-wins.' };
+TOOLS.forEach(function (t) {
+  if (['read_flow', 'validate_flow', 'list_flows'].indexOf(t.name) >= 0) return;
+  t.inputSchema.properties.expected_revision = REVISION;
+});
+TOOLS.filter(function (t) { return t.name === 'read_flow'; })[0].inputSchema.properties.with_revision =
+  { type: 'boolean', description: 'Return { revision, document } instead of the bare document.' };
+
 var EDIT_OPS = ['set_meta', 'add_group', 'update_group', 'remove_group', 'add_node', 'update_node', 'remove_node', 'add_step', 'update_step', 'remove_step', 'move_step'];
+
+function preconditions(a) {
+  return typeof a.expected_revision === 'string' && a.expected_revision ? { ifMatch: a.expected_revision } : {};
+}
 
 function callTool(name, a) {
   a = a || {};
   switch (name) {
     case 'list_flows': return { flows: store.list() };
-    case 'read_flow': return store.read(a.file);
+    case 'read_flow':
+      if (a.with_revision) { var rr = store.readWithRevision(a.file); return { revision: rr.revision, document: rr.doc }; }
+      return store.read(a.file);
     case 'validate_flow':
       if (a.document) return S.validate(a.document);
       return S.validate(store.read(a.file));
     case 'create_flow':
       if (!a.document || typeof a.document !== 'object') throw S.fail('"document" is required');
       if (store.exists(a.file) && !a.overwrite) throw S.fail(a.file + ' already exists. Use edit tools, or pass overwrite:true.');
-      return store.write(a.file, a.document);
+      return store.write(a.file, a.document, preconditions(a));
     case 'delete_flow':
       if (a.confirm !== true) throw S.fail('Pass confirm:true to delete ' + a.file);
-      store.remove(a.file); return { ok: true, deleted: a.file };
+      var dr = store.remove(a.file, preconditions(a));
+      return dr.ok ? { ok: true, deleted: a.file } : dr;
   }
-  if (EDIT_OPS.indexOf(name) >= 0) return store.edit(a.file, name, a);
+  if (EDIT_OPS.indexOf(name) >= 0) return store.edit(a.file, name, a, preconditions(a));
   var e = new Error('Unknown tool: ' + name); e.rpc = -32602; throw e;
 }
 
@@ -126,7 +145,7 @@ function handle(msg) {
       case 'tools/call':
         try {
           var out = callTool(p.name, p.arguments);
-          result = { content: [{ type: 'text', text: JSON.stringify(out, null, 2) }], isError: out && out.ok === false };
+          result = { content: [{ type: 'text', text: JSON.stringify(out, null, 2) }], isError: !!(out && out.ok === false) };
         } catch (e) {
           if (!e.userError) throw e;
           result = { content: [{ type: 'text', text: e.message }], isError: true };
@@ -174,6 +193,73 @@ function runStdio() {
   console.error('flow-animator MCP server on stdio, FLOW_DIR=' + store.dir);
 }
 
+/* ---------- Flow API (Flow Library, slice flow-http-api) ---------- */
+
+function etagOf(rev) { return '"' + rev + '"'; }
+/* Parse an If-Match / If-None-Match header value into a revision or '*'. */
+function headerRev(v) {
+  if (typeof v !== 'string' || !v) return undefined;
+  v = v.trim();
+  if (v === '*') return '*';
+  return v.replace(/^W\//, '').replace(/^"|"$/g, '');
+}
+
+function flowApi(req, res, url, send, MAX) {
+  var rest = url.slice('/api/flows'.length).replace(/^\//, '');
+  var name;
+  try { name = rest ? decodeURIComponent(rest) : null; } catch (e) { return send(res, 400, { error: 'bad file name encoding' }); }
+  var m = req.method;
+  try {
+    if (!name) {
+      if (m !== 'GET') return send(res, 405, { error: 'use GET' }, { Allow: 'GET' });
+      return send(res, 200, { flows: store.list() });
+    }
+    store.resolve(name); // validates the name, throws userError
+    if (m === 'GET') {
+      var cur = store.revision(name);
+      if (cur === null) return send(res, 404, { error: 'no such flow: ' + name });
+      if (headerRev(req.headers['if-none-match']) === cur) { res.writeHead(304, { ETag: etagOf(cur), 'Cache-Control': 'no-store' }); return res.end(); }
+      var r = store.readWithRevision(name);
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ETag: etagOf(r.revision) });
+      return res.end(r.text);
+    }
+    var ifMatch = headerRev(req.headers['if-match']), ifNone = headerRev(req.headers['if-none-match']);
+    var opts = {};
+    if (ifMatch && ifMatch !== '*') opts.ifMatch = ifMatch;
+    if (ifNone === '*') opts.ifNoneMatch = '*';
+    if (m === 'DELETE') {
+      if (!store.exists(name)) return send(res, 404, { error: 'no such flow: ' + name });
+      var d = store.remove(name, opts);
+      if (d.conflict) return send(res, 412, { error: 'conflict', revision: d.revision }, { ETag: etagOf(d.revision) });
+      res.writeHead(204); return res.end();
+    }
+    if (m !== 'PUT') return send(res, 405, { error: 'use GET, PUT or DELETE' }, { Allow: 'GET, PUT, DELETE' });
+    var size = 0, chunks = [];
+    req.on('data', function (c) {
+      size += c.length;
+      if (size > MAX) { send(res, 413, { error: 'request too large' }); req.destroy(); } else chunks.push(c);
+    });
+    req.on('end', function () {
+      if (res.writableEnded) return;
+      var doc;
+      try { doc = JSON.parse(Buffer.concat(chunks).toString('utf8')); }
+      catch (e) { return send(res, 400, { error: 'body is not valid JSON' }); }
+      try {
+        var w = store.write(name, doc, opts);
+        if (w.conflict) return send(res, 412, { error: 'conflict', revision: w.revision }, { ETag: etagOf(w.revision) });
+        if (!w.ok) return send(res, 422, { error: 'invalid flow', errors: w.errors, warnings: w.warnings });
+        send(res, w.created ? 201 : 200, { ok: true, revision: w.revision, warnings: w.warnings, stats: w.stats }, { ETag: etagOf(w.revision) });
+      } catch (e) { apiError(e, send, res); }
+    });
+  } catch (e) { apiError(e, send, res); }
+}
+
+function apiError(e, send, res) {
+  if (e.userError) return send(res, 400, { error: e.message });
+  console.error(e);
+  send(res, 500, { error: 'internal error' });
+}
+
 function runHttp(port) {
   var token = process.env.MCP_TOKEN || '';
   var host = process.env.MCP_HOST || '127.0.0.1';
@@ -186,8 +272,9 @@ function runHttp(port) {
   var server = http.createServer(function (req, res) {
     var url = req.url.split('?')[0];
     if (url === '/healthz') { res.writeHead(200, { 'Content-Type': 'text/plain' }); return res.end('ok\n'); }
-    if (url !== '/mcp') return send(res, 404, { error: 'not found; the MCP endpoint is /mcp' });
+    if (url !== '/mcp' && url !== '/api/flows' && url.indexOf('/api/flows/') !== 0) return send(res, 404, { error: 'not found; endpoints are /mcp and /api/flows' });
     if (token && req.headers.authorization !== 'Bearer ' + token) return send(res, 401, { error: 'missing or wrong bearer token' });
+    if (url !== '/mcp') return flowApi(req, res, url, send, MAX);
     if (req.method !== 'POST') return send(res, 405, { error: 'use POST' }, { Allow: 'POST' });
     var size = 0, chunks = [];
     req.on('data', function (c) {
