@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Fixed
+- Docker: `/` returned 404 because the nginx `try_files` did not fall back to `index.html`.
+
 ### Added
 - Docker deployment: `Dockerfile`, `docker-compose.yml`, nginx config; `./flows` volume for user flows (see `docs/features/docker-deployment.md`).
 - Claude Code subagents in `.claude/agents/`: software-engineer, architect, deployment, tester.
