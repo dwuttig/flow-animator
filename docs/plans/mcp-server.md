@@ -1,6 +1,6 @@
 # Plan: MCP server for creating and editing flows
 
-- Status: draft (waiting on the dependency decision)
+- Status: done
 - Spec: `docs/features/mcp-server.md`
 
 ## Approach
@@ -9,18 +9,18 @@ Add `mcp-server.js`, a Node script with no dependencies that speaks MCP (newline
 Each edit tool: load the file, apply the change to the parsed document, run `FlowCore.loadDoc`, write only if there are no errors, return warnings.
 
 ## Steps
-1. [ ] Confirm dependency choice with Daniel.
-2. [ ] `flow-store.js`: resolve/confine paths under `FLOW_DIR`, `readFlow`, `writeFlow` (validate then atomic write), list.
-3. [ ] Edit operations (meta, groups, nodes, steps) as pure functions on the document, with clear errors (unknown id, index out of range, id exists).
-4. [ ] `mcp-server.js`: JSON-RPC framing, `initialize`, `tools/list`, `tools/call`, `resources/list|read`, error mapping (tool errors as `isError` results).
-5. [ ] Tests with `node:test` (`test/`): store, operations, and an end-to-end stdio session. Add `npm`-free run command `node --test test/`.
-6. [ ] README section "MCP server": client config snippet and tool list.
-7. [ ] Coordinate with the Docker thread: image includes `mcp-server.js`, `flow-store.js`, `flow-core.js`, `flow.schema.json`; entrypoint option `mcp`; `/flows` volume.
-8. [ ] CHANGELOG entry.
+1. [x] Confirm dependency choice with Daniel.
+2. [x] `flow-store.js`: resolve/confine paths under `FLOW_DIR`, `readFlow`, `writeFlow` (validate then atomic write), list.
+3. [x] Edit operations (meta, groups, nodes, steps) as pure functions on the document, with clear errors (unknown id, index out of range, id exists).
+4. [x] `mcp-server.js`: JSON-RPC framing, `initialize`, `tools/list`, `tools/call`, `resources/list|read`, error mapping (tool errors as `isError` results).
+5. [x] Tests with `node:test` (`test/`): store, operations, and an end-to-end stdio session. Add `npm`-free run command `node --test`.
+6. [x] README section "MCP server": client config snippet and tool list.
+7. [x] Coordinate with the Docker thread: image includes `mcp-server.js`, `flow-store.js`, `flow-core.js`, `flow.schema.json`; entrypoint option `mcp`; `/flows` volume.
+8. [x] CHANGELOG entry.
 
 ## Files touched
 - new: `mcp-server.js`, `flow-store.js`, `test/*.test.js`
-- changed: `README.md`, `CHANGELOG.md`, Dockerfile (Docker thread)
+- changed: `README.md`, `CHANGELOG.md`, `Dockerfile` (new `mcp` stage), `docker-compose.yml`, `.dockerignore`
 
 ## Risks
 - Path traversal or writes outside `FLOW_DIR`: mitigate by resolving and checking the prefix, accept only `*.flow.json`.
@@ -28,7 +28,7 @@ Each edit tool: load the file, apply the change to the parsed document, run `Flo
 - Concurrent edits from viewer and agent: last write wins; atomic rename avoids partial files.
 
 ## Verification
-- `node --test test/`
+- `node --test`
 - `printf` an `initialize` plus `tools/list` request into `node mcp-server.js` and check the reply.
 - Create a flow via tools, then `node validate.js` it and open it in the viewer.
 

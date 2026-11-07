@@ -8,6 +8,26 @@ Open `index.html` in a browser, load a `*.flow.json` file, and watch a packet tr
 
 No install, no dependencies, no build step. Node is only needed for the optional command-line tools.
 
+## Docker
+
+```
+docker compose up --build   # viewer at http://localhost:8080
+```
+
+Put your own `*.flow.json` files in `./flows`; they are served at `/flows/<name>.flow.json`.
+
+## MCP server (create and edit flows)
+
+`mcp-server.js` lets MCP-capable agents create, read, validate and edit flow files through tools instead of rewriting JSON. Every change is validated with `flow-core.js`; an invalid change is rejected and the file stays untouched. Positions are automatic, so tools never take coordinates.
+
+- Docker: `docker compose up --build` also starts it at `http://localhost:8081/mcp` (Streamable HTTP), sharing `./flows` with the viewer. Set `MCP_TOKEN` to require a bearer token.
+- Local stdio: `FLOW_DIR=./flows node mcp-server.js`, or `docker run -i --rm -v ./flows:/flows flow-animator-mcp node mcp-server.js`.
+- Local HTTP: `node mcp-server.js --http 8081`.
+- Client config (stdio): `{"mcpServers":{"flow-animator":{"command":"node","args":["/path/to/mcp-server.js"],"env":{"FLOW_DIR":"/path/to/flows"}}}}`. For HTTP use the URL `http://localhost:8081/mcp`.
+- Tools: `list_flows`, `read_flow`, `validate_flow`, `create_flow`, `delete_flow`, `set_meta`, `add_group`/`update_group`/`remove_group`, `add_node`/`update_node`/`remove_node`, `add_step`/`update_step`/`remove_step`/`move_step`. Resources: `flow://schema`, `flow://guide`.
+- Tests: `node --test`.
+- Linux note: the container runs as a non-root user; if `./flows` is not writable by it, run `chmod a+w flows`.
+
 ---
 
 ## For AI agents: your task
@@ -222,6 +242,7 @@ Paste this to any AI agent that can read files in this folder:
 |---|---|
 | `index.html` | The viewer. Open it in a browser. |
 | `flow-core.js` | Parsing, validation, auto-layout (used by the viewer and the Node tools). |
+| `mcp-server.js`, `flow-store.js` | MCP server (stdio and HTTP) and its file/edit logic. |
 | `validate.js` | Command-line validator for agents and CI. |
 | `build-standalone.js` | Bundles viewer + one flow into a single HTML file. |
 | `flow.schema.json` | JSON Schema for editor autocomplete. `validate.js` is the stricter source of truth. |

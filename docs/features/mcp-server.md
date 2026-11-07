@@ -1,6 +1,6 @@
 # MCP server for creating and editing flows
 
-- Status: proposed
+- Status: implemented
 - Plan: `docs/plans/mcp-server.md`
 
 ## Problem
@@ -37,12 +37,12 @@ Tools (all return the validation result; mutations also return the new stats):
 
 Resources: `flow://schema` (flow.schema.json) and `flow://guide` (README format section) so agents can read the rules.
 
-Transports: stdio first (works with `docker run -i` and local clients). Streamable HTTP (`--http PORT`) is a possible second step, see open questions.
+Transports: stdio first (works with `docker run -i` and local clients). Streamable HTTP (`--http PORT`, endpoint `POST /mcp`, stateless JSON responses) is the transport in Docker. Optional `MCP_TOKEN` bearer auth.
 
 ## File-format impact
 None.
 
-## Open questions
-1. Dependency: hand-rolled JSON-RPC over stdio (about 200 lines, zero dependencies, keeps the project rule) versus the official `@modelcontextprotocol/sdk` (less protocol code to own, but adds a dependency tree, `package.json` and an install step). Recommendation: hand-rolled, since we need only `initialize`, `tools/list`, `tools/call`, `resources/*`. Needs Daniel's decision.
-2. HTTP transport in the container, or stdio only?
-3. Should edits keep a `.bak` of the previous version, or rely on git?
+## Decisions (Daniel, 2026-11-07)
+- HTTP transport in addition to stdio.
+- Dependency: hand-rolled JSON-RPC, no SDK (the recommended option; keeps the zero-dependency rule).
+- Previous versions: rely on git, no `.bak` files.
