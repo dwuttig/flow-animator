@@ -18,7 +18,7 @@ Flows are stored in a SQLite database on the `flow-animator-data` volume (see "S
 
 ## Editor mode
 
-Click **Edit** in the viewer to change the flow in the browser: title, groups, nodes and steps, with undo/redo. Every change is validated before it is shown; invalid changes are rejected. Use **Download** or **Copy JSON** to keep the result (the viewer cannot write to your `./flows` folder; agents can, via MCP). No coordinates to set: layout stays automatic. Script access: `FlowAnimator.edit("add_node", {id:"x", label:"X"})`.
+Click **Edit** in the viewer to change the flow in the browser: title, groups, nodes and steps, with undo/redo. Every change is validated before it is shown; invalid changes are rejected. Use **Download** or **Copy JSON** to keep the result (the viewer cannot write to your `./flows` folder; agents can, via MCP). Steps can be edited as **Fields** or as a **Sentence** ("Client sends Submit order to API gateway as a call...", click an underlined value to change it); the toggle above the steps remembers your choice. No coordinates to set: layout stays automatic. Script access: `FlowAnimator.edit("add_node", {id:"x", label:"X"})`.
 
 ## MCP server (create and edit flows)
 
@@ -85,6 +85,7 @@ One file = one scenario. If the system has several distinct scenarios (login, ch
 | `title` | recommended | string | Shown as the page heading. |
 | `description` | no | string | One or two sentences. |
 | `layout.direction` | no | `"LR"` or `"TB"` | Left to right (default) or top to bottom. |
+| `layout.connection` | no | `"auto"`, `"bezier"`, `"linear"` or `"orthogonal"` | Edge routing style (default `auto`: straight, bending around nodes). The viewer can override direction and connection style at runtime. |
 | `groups` | no | array | Colour categories, see below. |
 | `nodes` | yes | array | At least one. |
 | `steps` | yes | array | At least one. Order is the animation order. |
@@ -200,7 +201,7 @@ Common errors and fixes:
 
 Browsers block `?src=` on `file://` pages. Use a local server or one of the other options.
 
-Controls: **Play/Pause** (Space), **Prev/Next** (Left/Right arrows), **Restart** (Home), scrubber, **Speed**, **Loop**, **Trail** (keeps completed arrows tinted). Click a step in the list to jump to it. The viewer follows the system light/dark theme and starts paused if the OS asks for reduced motion.
+Controls: **Play/Pause** (Space), **Prev/Next** (Left/Right arrows), **Restart** (Home), scrubber, **Speed**, **Loop**, **Trail** (keeps completed arrows tinted). Click a step in the list to jump to it. **Maximize** (M) fills the window with the visualization and **Fullscreen** (F) uses the whole screen; Esc leaves Maximize. Top right of the diagram, choose the **Orientation** (Horizontal/Vertical); below the controls pick **Connections** (Auto, Bezier, Linear, Orthogonal), **Step style** (By kind, Solid, Dashed, Dotted) and line **Thickness**. These are viewer settings (not saved in the file, except the default `layout.direction` and `layout.connection`) and are remembered in the browser. The viewer follows the system light/dark theme and starts paused if the OS asks for reduced motion.
 
 Agents that drive a browser can use the page API: `FlowAnimator.load(objectOrJsonText)` returns `{ ok, errors, warnings }`; `FlowAnimator.jump(beatIndex, true)` shows a step; `FlowAnimator.state()` reports progress.
 

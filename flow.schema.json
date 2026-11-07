@@ -15,7 +15,8 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "direction": { "enum": ["LR", "TB"], "default": "LR" }
+        "direction": { "enum": ["LR", "TB"], "default": "LR" },
+        "connection": { "enum": ["auto", "bezier", "linear", "orthogonal"], "default": "auto" }
       }
     },
     "groups": {

@@ -17,10 +17,11 @@
   var SHAPES = ['box', 'database', 'queue'];
   var KINDS = ['sync', 'async', 'response', 'event'];
   var DIRS = ['LR', 'TB'];
+  var CONNECTIONS = ['auto', 'bezier', 'linear', 'orthogonal'];
   var ID_RE = /^[A-Za-z0-9][A-Za-z0-9_.-]*$/;
   var KEYS = {
     root: ['$schema', 'format', 'title', 'description', 'layout', 'groups', 'nodes', 'steps'],
-    layout: ['direction'],
+    layout: ['direction', 'connection'],
     group: ['id', 'label', 'color'],
     node: ['id', 'label', 'subtitle', 'group', 'shape', 'col', 'row'],
     step: ['from', 'to', 'label', 'detail', 'payload', 'kind', 'together']
@@ -112,6 +113,9 @@
         checkKeys(doc.layout, 'layout', '$.layout');
         if (doc.layout.direction !== undefined && DIRS.indexOf(doc.layout.direction) < 0) {
           err('$.layout.direction', 'must be "LR" (left to right) or "TB" (top to bottom)');
+        }
+        if (doc.layout.connection !== undefined && CONNECTIONS.indexOf(doc.layout.connection) < 0) {
+          err('$.layout.connection', 'must be one of: ' + CONNECTIONS.join(', '));
         }
       }
     }
@@ -254,6 +258,7 @@
       title: doc.title || 'Untitled flow',
       description: doc.description || '',
       direction: (doc.layout && doc.layout.direction) || 'LR',
+      connection: (doc.layout && doc.layout.connection) || 'auto',
       groups: groups.filter(function (g) { return usedGroups[g.id]; }),
       nodes: nodes,
       steps: steps,
@@ -294,7 +299,7 @@
 
   function f(n) { return Math.round(n * 10) / 10; }
 
-  function route(rects, model) {
+  function route(rects, model, dir, conn) {
     var edges = [], byKey = {};
     model.steps.forEach(function (s) {
       var k = s.from + '>' + s.to;
@@ -313,7 +318,7 @@
     edges.forEach(function (e) {
       var a = rects[e.from], z = rects[e.to], p, i;
       if (e.from === e.to) {
-        if (model.direction === 'TB') {
+        if (dir === 'TB') {
           // flow arrives from above, so the loop goes on the right-hand side
           var rx = a.x + a.w + 2, ya = a.y + a.h * 0.28, yb = a.y + a.h * 0.72;
           e.d = 'M' + f(rx) + ' ' + f(ya) + ' C' + f(rx + 48) + ' ' + f(ya) + ' ' + f(rx + 48) + ' ' + f(yb) + ' ' + f(rx + 2) + ' ' + f(yb);
@@ -329,11 +334,34 @@
       var dx = c1.x - c0.x, dy = c1.y - c0.y, len = Math.hypot(dx, dy) || 1;
       var nrm = { x: -dy / len, y: dx / len };
       var off = byKey[e.to + '>' + e.from] ? 9 : 0;
+      if (conn === 'bezier' || conn === 'orthogonal') {
+        var horiz = Math.abs(dx) * (dir === 'TB' ? 0.5 : 1.5) >= Math.abs(dy);
+        var sx = dx >= 0 ? 1 : -1, sy = dy >= 0 ? 1 : -1, q0, q1;
+        if (horiz) {
+          q0 = { x: sx > 0 ? a.x + a.w + 2 : a.x - 2, y: c0.y + nrm.y * off };
+          q1 = { x: sx > 0 ? z.x - 4 : z.x + z.w + 4, y: c1.y + nrm.y * off };
+        } else {
+          q0 = { x: c0.x + nrm.x * off, y: sy > 0 ? a.y + a.h + 2 : a.y - 2 };
+          q1 = { x: c1.x + nrm.x * off, y: sy > 0 ? z.y - 4 : z.y + z.h + 4 };
+        }
+        var mx = (q0.x + q1.x) / 2, my = (q0.y + q1.y) / 2;
+        if (conn === 'bezier') {
+          e.d = horiz
+            ? 'M' + f(q0.x) + ' ' + f(q0.y) + ' C' + f(mx) + ' ' + f(q0.y) + ' ' + f(mx) + ' ' + f(q1.y) + ' ' + f(q1.x) + ' ' + f(q1.y)
+            : 'M' + f(q0.x) + ' ' + f(q0.y) + ' C' + f(q0.x) + ' ' + f(my) + ' ' + f(q1.x) + ' ' + f(my) + ' ' + f(q1.x) + ' ' + f(q1.y);
+        } else {
+          e.d = horiz
+            ? 'M' + f(q0.x) + ' ' + f(q0.y) + ' L' + f(mx) + ' ' + f(q0.y) + ' L' + f(mx) + ' ' + f(q1.y) + ' L' + f(q1.x) + ' ' + f(q1.y)
+            : 'M' + f(q0.x) + ' ' + f(q0.y) + ' L' + f(q0.x) + ' ' + f(my) + ' L' + f(q1.x) + ' ' + f(my) + ' L' + f(q1.x) + ' ' + f(q1.y);
+        }
+        grow(q0.x, q0.y); grow(q1.x, q1.y); grow(mx, my);
+        return;
+      }
       var o0 = { x: c0.x + nrm.x * off, y: c0.y + nrm.y * off };
       var o1 = { x: c1.x + nrm.x * off, y: c1.y + nrm.y * off };
       var mid = { x: (o0.x + o1.x) / 2, y: (o0.y + o1.y) / 2 };
       var others = Object.keys(rects).filter(function (id) { return id !== e.from && id !== e.to; });
-      var bows = [0, 50, -50, 100, -100, 160, -160];
+      var bows = conn === 'linear' ? [0] : [0, 50, -50, 100, -100, 160, -160];
       var chosen = null, firstBlocker = null;
 
       for (var bi = 0; bi < bows.length && !chosen; bi++) {
@@ -356,7 +384,7 @@
           }
         }
         if (bow === 0) firstBlocker = blocker;
-        if (!blocker) chosen = { p0: p0, p1: p1, ctrl: ctrl, pts: pts };
+        if (!blocker || conn === 'linear') chosen = { p0: p0, p1: p1, ctrl: ctrl, pts: pts };
       }
       if (!chosen) {
         p0 = rayExit(o0, a, o1, 4); p1 = rayExit(o1, z, o0, 4);
@@ -372,8 +400,9 @@
     return { edges: edges, bounds: b, warnings: warnings };
   }
 
-  function layout(model) {
-    var dir = model.direction, nodes = model.nodes, steps = model.steps;
+  function layout(model, opts) {
+    opts = opts || {};
+    var dir = opts.direction || model.direction, conn = opts.connection || model.connection || 'auto', nodes = model.nodes, steps = model.steps;
     var by = {};
     nodes.forEach(function (n) { by[n.id] = n; });
 
@@ -440,11 +469,11 @@
     }
 
     // 4. route edges; shift everything if a curve left the canvas
-    var res = route(rects, model);
+    var res = route(rects, model, dir, conn);
     var dx = Math.max(0, PAD - res.bounds.minX), dy = Math.max(0, PAD - res.bounds.minY);
     if (dx || dy) {
       Object.keys(rects).forEach(function (id) { rects[id].x += dx; rects[id].y += dy; });
-      res = route(rects, model);
+      res = route(rects, model, dir, conn);
     }
 
     return {
@@ -475,7 +504,7 @@
   }
 
   return {
-    FORMAT: FORMAT, COLORS: COLORS, SHAPES: SHAPES, KINDS: KINDS,
+    FORMAT: FORMAT, CONNECTIONS: CONNECTIONS, COLORS: COLORS, SHAPES: SHAPES, KINDS: KINDS,
     parse: parse, validate: validate, normalize: normalize, layout: layout,
     buildBeats: buildBeats, load: load, loadDoc: loadDoc, nodeWidth: nodeWidth, NODE_H: NODE_H
   };

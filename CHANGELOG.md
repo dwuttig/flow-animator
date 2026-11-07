@@ -11,12 +11,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Docker: `/` returned 404 because the nginx `try_files` did not fall back to `index.html`.
 
 ### Changed
+- Viewer layout: the page is centered with a 1440px maximum width and all sections share the same width; the diagram scales to that width but never below 90% of its natural size (wide flows scroll horizontally and follow the active step); the step details panel has a fixed height (scrolls); control alignment fixed.
 - **Flow names have no `.json` suffix**: Save as asks only for a unique name (a typed `.flow.json` is stripped), the picker, `?flow=` links, `/api/flows/<name>` and MCP show bare names; the old `name.flow.json` form is still accepted, and SQLite databases created earlier are migrated. Names are unique ignoring case. Downloads are still `.flow.json` files.
 - **Default flow storage is now SQLite** (`node:sqlite`, no new dependency; Docker volume `flow-animator-data`, `/data/flows.db`). Set `FLOW_STORE=files` for the old folder of `*.flow.json`. The MCP config dialog's stdio command now mounts that volume instead of the flows folder.
 - `build-standalone.js` now shares its bundling code with the viewer's export (`src/playback/export-flow/`) and works with CRLF checkouts. The `pick-flow` slice is replaced by `flow-menu`.
 - Project now follows Domain-Driven Design: bounded contexts and vertical slices documented in `docs/architecture.md` and `docs/ubiquitous-language.md`; agents, spec and plan templates updated. Code restructuring is proposed in `docs/features/ddd-restructure.md`.
 
 ### Added
+- Viewer: **Maximize/Minimize** (key `M`) and **Fullscreen** (key `F`) for the visualization; an overlay at the top right of the diagram holds the **Orientation** (Horizontal/Vertical) and Maximize controls. An options row adds **Connections** (Auto, Bezier, Linear, Orthogonal), **Step style** (By kind, Solid, Dashed, Dotted) and a line **Thickness** slider (remembered in the browser, except orientation).
+- Flow format: optional `layout.connection` (`auto`, `bezier`, `linear`, `orthogonal`); `FlowCore.layout(model, {direction, connection})` accepts overrides.
+- Editor: steps can be edited as a **Sentence** (Outlook rule style: click an underlined node, kind, label, detail or payload to change it); a **Fields | Sentence** toggle above the steps remembers the choice.
 - Editor: the step's "Together" checkbox is now a **Together with** multi-select of other steps (new `set_parallel` edit and MCP tool). The file format is unchanged (`together` flags), so existing flows work as before.
 - SQLite-backed Flow store (`src/flow-library/sqlite-store/`) behind the same interface: transactional Revision checks, one-time import of existing `*.flow.json` on first start (`FLOW_IMPORT=0` to skip), and `node mcp-server.js --import [dir]` (see `docs/features/sqlite-storage.md`).
 - Header **Flow menu** (replaces Open file / Paste JSON / Built-in example and the stored-flows dropdown): stored flows, Open file, Paste JSON, Built-in example, New flow, Share flow (copies a `?flow=` link), Delete flow, Export flow (download JSON or a standalone HTML built in the browser) and an MCP config dialog with copy-ready JSON and a `claude mcp add` command for stdio via Docker and HTTP on :8081 with an optional token (see `docs/features/flow-menu.md`).

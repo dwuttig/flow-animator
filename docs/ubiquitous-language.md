@@ -26,6 +26,8 @@ One vocabulary for code, docs, specs, agents and conversation. If a word here an
 | **Packet** | The marker travelling along an Edge during a Step. |
 | **Trail** | The already-completed Steps, kept visible. |
 | **Editor mode** | Viewer mode with a panel to change the Flow through Edits. |
+| **Sentence mode** | Editor style that shows a Step as a sentence whose underlined values are edited in place (like an Outlook rule description); the alternative is Fields. |
+| **View settings** | Viewer-only rendering choices (orientation, connection style, step style, thickness, Maximize). Not stored in the Flow, except the default `layout.direction` and `layout.connection`. |
 | **Draft** | The Flow being edited in the browser, not yet downloaded. Every change is a validated Edit; undo/redo walks the Draft history. |
 
 ## Flow Library (supporting)

@@ -191,6 +191,81 @@
     });
   }
 
+  /* ---------- sentence mode (Outlook-style rule description: click an underlined value) ---------- */
+
+  var KIND_WORDS = { sync: 'call', async: 'async message', response: 'response', event: 'event' };
+  var stepMode = 'fields';
+  try { if (typeof localStorage !== 'undefined' && localStorage.getItem('flow-animator.stepMode') === 'sentence') stepMode = 'sentence'; } catch (e) { /* storage unavailable */ }
+
+  function setStepMode(m) {
+    stepMode = m;
+    try { localStorage.setItem('flow-animator.stepMode', m); } catch (e) { /* storage unavailable */ }
+    renderPanel();
+  }
+
+  function swapBack(parent, shown, link) { if (shown.parentNode === parent) parent.replaceChild(link, shown); }
+
+  function linkSelect(parent, text, options, value, onPick) {
+    var b = h('button', 'elink', text, parent); b.type = 'button';
+    b.addEventListener('click', function () {
+      var s = h('select', 'elinkin');
+      options.forEach(function (o) { h('option', null, o.label, s).value = o.value; });
+      s.value = value == null ? '' : value;
+      parent.replaceChild(s, b); s.focus();
+      try { if (s.showPicker) s.showPicker(); } catch (e) { /* picker needs a user gesture */ }
+      s.addEventListener('change', function () { var v = s.value; swapBack(parent, s, b); onPick(v); });
+      s.addEventListener('blur', function () { swapBack(parent, s, b); });
+      s.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') swapBack(parent, s, b); });
+    });
+    return b;
+  }
+
+  function linkText(parent, value, placeholder, onChange, max) {
+    var b = h('button', 'elink' + (value ? '' : ' empty'), value || placeholder, parent); b.type = 'button';
+    b.addEventListener('click', function () {
+      var i = h('input', 'elinkin'); i.type = 'text'; i.value = value || ''; i.placeholder = placeholder;
+      if (max) i.maxLength = max;
+      i.size = Math.max(12, Math.min(48, i.value.length + 2));
+      parent.replaceChild(i, b); i.focus(); i.select();
+      var done = false;
+      function finish(commit) {
+        if (done) return; done = true;
+        swapBack(parent, i, b);
+        if (commit && i.value !== (value || '')) onChange(i.value);
+      }
+      i.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter') { ev.preventDefault(); finish(true); }
+        else if (ev.key === 'Escape') finish(false);
+      });
+      i.addEventListener('blur', function () { finish(true); });
+    });
+    return b;
+  }
+
+  function nodeLabelOf(id) {
+    var n = (draft.nodes || []).filter(function (x) { return x.id === id; })[0];
+    return n && n.label ? n.label : id;
+  }
+
+  function sentence(row, s, i, ids) {
+    var p = cols(h('div', 'esentence', null, row), 11);
+    var nodeOpts = ids.map(function (id) { return { value: id, label: nodeLabelOf(id) }; });
+    var kindOpts = KINDS.map(function (k) { return { value: k, label: KIND_WORDS[k] }; });
+    function txt(t) { p.appendChild(doc.createTextNode(t)); }
+    linkSelect(p, nodeLabelOf(s.from), nodeOpts, s.from, function (v) { edit('update_step', { index: i, from: v }); });
+    txt(' sends ');
+    linkText(p, s.label, '(label)', function (v) { edit('update_step', { index: i, label: v }); });
+    txt(' to ');
+    linkSelect(p, nodeLabelOf(s.to), nodeOpts, s.to, function (v) { edit('update_step', { index: i, to: v }); });
+    txt(' as a ');
+    linkSelect(p, KIND_WORDS[s.kind || 'sync'], kindOpts, s.kind || 'sync', function (v) { edit('update_step', { index: i, kind: v }); });
+    txt('. Detail: ');
+    linkText(p, s.detail, '(add detail)', function (v) { edit('update_step', { index: i, detail: nullable(v) }); });
+    txt('. Payload: ');
+    linkText(p, s.payload, '(add payload)', function (v) { edit('update_step', { index: i, payload: nullable(v) }); });
+    txt('.');
+  }
+
   function renderPanel() {
     if (!mount) return;
     var keepScroll = mount.scrollTop;
@@ -258,16 +333,24 @@
     var sb = section('Steps', (draft.steps || []).length);
     var ids = (draft.nodes || []).map(function (x) { return x.id; });
     var steps = draft.steps || [];
+    var modes = h('div', 'emodes', null, sb);
+    [['fields', 'Fields'], ['sentence', 'Sentence']].forEach(function (m) {
+      var mb = button(modes, m[1], function () { setStepMode(m[0]); }, 'Edit steps as ' + m[1].toLowerCase());
+      mb.setAttribute('aria-pressed', String(stepMode === m[0]));
+    });
     steps.forEach(function (s, i) {
       var row = item(sb, 's:' + i, (i + 1) + '. ' + s.from + ' → ' + s.to + (s.label ? ' — ' + s.label : ''), [s.from, s.to], [s.from + '>' + s.to]);
       var num = button(row, String(i + 1), function () { host.jumpToStep(i); }, 'Show this step');
       num.className = 'enum'; cols(num, 1);
-      select(row, 'From', ids, s.from, function (v) { edit('update_step', { index: i, from: v }); }, 5);
-      select(row, 'To', ids, s.to, function (v) { edit('update_step', { index: i, to: v }); }, 6);
-      field(row, 'Label', s.label, function (v) { edit('update_step', { index: i, label: v }); }, { span: 6 });
-      field(row, 'Detail', s.detail, function (v) { edit('update_step', { index: i, detail: nullable(v) }); }, { span: 6 });
-      field(row, 'Payload', s.payload, function (v) { edit('update_step', { index: i, payload: nullable(v) }); }, { span: 3 });
-      select(row, 'Kind', [''].concat(KINDS), s.kind, function (v) { edit('update_step', { index: i, kind: nullable(v) }); }, 3);
+      if (stepMode === 'sentence') sentence(row, s, i, ids);
+      else {
+        select(row, 'From', ids, s.from, function (v) { edit('update_step', { index: i, from: v }); }, 5);
+        select(row, 'To', ids, s.to, function (v) { edit('update_step', { index: i, to: v }); }, 6);
+        field(row, 'Label', s.label, function (v) { edit('update_step', { index: i, label: v }); }, { span: 6 });
+        field(row, 'Detail', s.detail, function (v) { edit('update_step', { index: i, detail: nullable(v) }); }, { span: 6 });
+        field(row, 'Payload', s.payload, function (v) { edit('update_step', { index: i, payload: nullable(v) }); }, { span: 3 });
+        select(row, 'Kind', [''].concat(KINDS), s.kind, function (v) { edit('update_step', { index: i, kind: nullable(v) }); }, 3);
+      }
       parallelPicker(row, steps, i);
       button(row, '↑', function () { edit('move_step', { index: i, to_index: i - 1 }); }, 'Move up', 1).disabled = i === 0;
       button(row, '↓', function () { edit('move_step', { index: i, to_index: i + 1 }); }, 'Move down', 1).disabled = i === steps.length - 1;

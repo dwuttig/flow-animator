@@ -27,11 +27,24 @@ button:focus-visible,input:focus-visible,li[tabindex]:focus-visible{outline:2px 
 #issues code{font:12px ui-monospace,Menlo,Consolas,monospace;margin-right:6px}
 #stage{margin:20px 0 4px;text-align:center;overflow-x:auto}
 #svg{max-width:none;height:auto;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
-.edge{fill:none;stroke:var(--edge);stroke-width:1.5;transition:stroke .2s}
+.edge{fill:none;stroke:var(--edge);stroke-width:var(--ew,1.5);transition:stroke .2s}
+#svg.ss-solid .edge{stroke-dasharray:none}
+#svg.ss-dashed .edge{stroke-dasharray:6 4}
+#svg.ss-dotted .edge{stroke-dasharray:2 4;stroke-linecap:round}
+#stagewrap{position:relative;margin:20px 0 4px}
+#stagewrap #stage{margin:0}
+#vizbar{position:absolute;top:8px;right:8px;z-index:2;display:flex;gap:6px;align-items:center;padding:4px;border-radius:10px;background:color-mix(in srgb,var(--bg) 80%,transparent);backdrop-filter:blur(4px)}
+#vizbar select{font:inherit;font-size:13px;color:var(--text);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:5px 8px}
+#viewer:fullscreen #stagewrap,#viewer.maxed #stagewrap{flex:1 1 auto;min-height:0;display:flex;margin:0}
+#viewer:fullscreen #stagewrap #stage,#viewer.maxed #stagewrap #stage{flex:1 1 auto;width:100%}
+#viewopts{display:flex;gap:14px;align-items:center;justify-content:center;flex-wrap:wrap;margin:4px 0;font-size:13px;color:var(--text2)}
+#viewopts label{display:inline-flex;align-items:center;gap:6px;line-height:1;white-space:nowrap}
+#viewopts select{font:inherit;font-size:13px;color:var(--text);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:3px 6px}
+#viewopts input[type=range]{width:90px;margin:0;accent-color:var(--hot)}
 .k-response{stroke-dasharray:6 4}
 .k-async,.k-event{stroke-dasharray:2 4;stroke-linecap:round}
 .edge.done{stroke:var(--done);opacity:.75}
-.edge.active{stroke:var(--hot);stroke-width:2.75;opacity:1}
+.edge.active{stroke:var(--hot);stroke-width:calc(var(--ew,1.5) * 1.8);opacity:1}
 .body{fill:var(--fill);stroke:var(--stroke);stroke-width:.75;transition:stroke .2s}
 .lip{fill:none;stroke:var(--stroke);stroke-width:.75}
 .node.hl .body{stroke:var(--hot);stroke-width:2.5}
@@ -77,11 +90,13 @@ dialog .row{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
 #editor{margin:16px 0 0;border:1px solid var(--line);border-radius:12px;padding:10px 14px;overflow:auto;font-size:13px}
 #editor[hidden]{display:none}
 #viewer{min-width:0}
-#viewer:fullscreen{background:var(--bg);display:flex;flex-direction:column;padding:16px 24px;overflow:auto}
-#viewer:fullscreen #stage{flex:1 1 auto;min-height:0;display:flex;align-items:center;justify-content:safe center;margin:0}
-#viewer:fullscreen #svg{flex:none}
-#viewer:fullscreen #steps{display:none}
-#viewer:fullscreen #cap{width:100%;flex:none}
+#viewer:fullscreen,#viewer.maxed{background:var(--bg);display:flex;flex-direction:column;padding:16px 24px;overflow:auto}
+#viewer.maxed{position:fixed;inset:0;z-index:5}
+body.maxed{overflow:hidden}
+#viewer:fullscreen #stage,#viewer.maxed #stage{flex:1 1 auto;min-height:0;display:flex;align-items:center;justify-content:safe center;margin:0}
+#viewer:fullscreen #svg,#viewer.maxed #svg{flex:none}
+#viewer:fullscreen #steps,#viewer.maxed #steps{display:none}
+#viewer:fullscreen #cap,#viewer.maxed #cap{width:100%;flex:none}
 @media (min-width:960px){
   body.editing #layout{display:grid;grid-template-columns:minmax(420px,560px) minmax(0,1fr);gap:24px;align-items:start}
   body.editing #editor{position:sticky;top:12px;max-height:calc(100vh - 24px)}
@@ -113,6 +128,16 @@ summary::-webkit-details-marker{display:none}
 .erow>.ef{grid-column:span 4}
 .erow>button{grid-column:span 2;justify-self:stretch;height:28px;padding:0 6px}
 .erow>.eid{grid-column:span 4;align-self:center;overflow:hidden;text-overflow:ellipsis;font:12px ui-monospace,Menlo,Consolas,monospace}
+.emodes{display:flex;gap:0;margin:8px 0 2px}
+.emodes button{border-radius:0;padding:3px 12px;font-size:12px}
+.emodes button:first-child{border-radius:8px 0 0 8px}
+.emodes button:last-child{border-radius:0 8px 8px 0;border-left:0}
+.emodes button[aria-pressed=true]{background:var(--card);border-color:var(--hot);font-weight:600}
+.esentence{grid-column:span 11;align-self:center;font-size:13px;line-height:2;color:var(--text)}
+.elink{font:inherit;color:var(--sel);background:transparent;border:0;border-bottom:1px solid currentColor;border-radius:0;padding:0 1px;cursor:pointer}
+.elink:hover{background:var(--card)}
+.elink.empty{color:var(--text2);font-style:italic}
+.elinkin{font:inherit;font-size:13px;color:var(--text);background:var(--card);border:1px solid var(--sel);border-radius:4px;padding:1px 4px;max-width:100%}
 .eadd{margin-top:10px;padding-top:10px;border-top:2px solid var(--line)}
 .eaddbtn{width:100%;height:30px;border:1px dashed var(--text2);border-radius:6px;background:transparent;color:var(--text);cursor:pointer;font-weight:500}
 .eaddbtn:hover:not(:disabled){background:var(--card)}
@@ -169,7 +194,13 @@ summary::-webkit-details-marker{display:none}
   <div id="layout">
     <section id="editor" hidden aria-label="Editor"></section>
     <div id="viewer">
-    <section id="stage"><svg id="svg" role="img" aria-label="Animated flow diagram"></svg></section>
+    <div id="stagewrap">
+      <div id="vizbar">
+        <select id="optDir" aria-label="Orientation" title="Orientation"><option value="LR">Horizontal</option><option value="TB">Vertical</option></select>
+        <button id="maxBtn" type="button" aria-pressed="false" title="Maximize the visualization (M)">Maximize</button>
+      </div>
+      <section id="stage"><svg id="svg" role="img" aria-label="Animated flow diagram"></svg></section>
+    </div>
     <div id="legend"></div>
 
     <section id="cap" aria-live="polite"></section>
@@ -185,6 +216,12 @@ summary::-webkit-details-marker{display:none}
       <label><input id="loop" type="checkbox" checked> Loop</label>
       <label><input id="trail" type="checkbox" checked> Trail</label>
       <button id="fsBtn" type="button" aria-pressed="false" title="Fullscreen (F)">Fullscreen</button>
+    </section>
+
+    <section id="viewopts" aria-label="Rendering options">
+      <label>Connections <select id="optConn"><option value="auto">Auto</option><option value="bezier">Bezier</option><option value="linear">Linear</option><option value="orthogonal">Orthogonal</option></select></label>
+      <label>Step style <select id="optStep"><option value="kind">By kind</option><option value="solid">Solid</option><option value="dashed">Dashed</option><option value="dotted">Dotted</option></select></label>
+      <label>Thickness <input id="optThick" type="range" min="1" max="6" step="0.5" value="1.5" aria-label="Line thickness"> <span id="optThickL">1.5</span></label>
     </section>
 
     <ol id="steps"></ol>
@@ -694,8 +731,11 @@ summary::-webkit-details-marker{display:none}
       return res;
     }
     S.name = name; S.text = text;
-    S.model = res.model; S.geo = res.geometry;
-    render(res.model, res.geometry);
+    S.model = res.model;
+    var lo = layoutOpts(res.model);
+    S.geo = (lo.direction !== res.model.direction || lo.connection !== res.model.connection) ? C.layout(res.model, lo) : res.geometry;
+    syncOpts(res.model);
+    render(res.model, S.geo);
     $('src').textContent = (saver.name() === name && srcLabel()) || ('Source: ' + name);
     showIssues([], res.warnings, name, false);
     S.finished = false;
@@ -758,6 +798,63 @@ summary::-webkit-details-marker{display:none}
     if (f && discardOk()) f.text().then(function (t) { loadLocal(t, f.name); });
   });
 
+  /* ---------- rendering options and maximize ---------- */
+
+  var V = { direction: null, connection: null, step: 'kind', thick: 1.5 };
+  try {
+    var saved = JSON.parse(localStorage.getItem('flow-animator.view') || '{}');
+    if (C.CONNECTIONS.indexOf(saved.connection) >= 0) V.connection = saved.connection;
+    if (['kind', 'solid', 'dashed', 'dotted'].indexOf(saved.step) >= 0) V.step = saved.step;
+    if (saved.thick >= 1 && saved.thick <= 6) V.thick = +saved.thick;
+  } catch (e) {}
+
+  function saveView() {
+    try { localStorage.setItem('flow-animator.view', JSON.stringify({ connection: V.connection, step: V.step, thick: V.thick })); } catch (e) {}
+  }
+  function layoutOpts(model) {
+    return { direction: V.direction || model.direction, connection: V.connection || model.connection };
+  }
+  function syncOpts(model) {
+    var o = layoutOpts(model);
+    $('optDir').value = o.direction; $('optConn').value = o.connection;
+    $('optStep').value = V.step; $('optThick').value = String(V.thick); $('optThickL').textContent = String(V.thick);
+    applyLook();
+  }
+  function applyLook() {
+    var svg = $('svg');
+    svg.style.setProperty('--ew', String(V.thick));
+    svg.classList.remove('ss-solid', 'ss-dashed', 'ss-dotted');
+    if (V.step !== 'kind') svg.classList.add('ss-' + V.step);
+  }
+  function relayout() {
+    if (!S.model) return;
+    S.geo = C.layout(S.model, layoutOpts(S.model));
+    var keep = S.arrived;
+    render(S.model, S.geo);
+    applyLook();
+    begin(S.idx);
+    if (keep) { S.elapsed = S.DUR; S.arrived = true; hidePackets(); paint(); }
+  }
+  $('optDir').addEventListener('change', function () { V.direction = this.value; relayout(); });
+  $('optConn').addEventListener('change', function () { V.connection = this.value; saveView(); relayout(); });
+  $('optStep').addEventListener('change', function () { V.step = this.value; saveView(); applyLook(); });
+  $('optThick').addEventListener('input', function () {
+    V.thick = +this.value; $('optThickL').textContent = String(V.thick); saveView(); applyLook();
+    Object.keys(S.edgeEls).forEach(function (id) { S.lens[id] = S.edgeEls[id].getTotalLength(); });
+  });
+
+  function setMaxed(on) {
+    $('viewer').classList.toggle('maxed', on);
+    document.body.classList.toggle('maxed', on);
+    $('maxBtn').setAttribute('aria-pressed', String(on));
+    $('maxBtn').textContent = on ? 'Minimize' : 'Maximize';
+    if (S.model) paint();
+  }
+  $('maxBtn').addEventListener('click', function () { setMaxed(!$('viewer').classList.contains('maxed')); });
+  window.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && $('viewer').classList.contains('maxed') && !document.fullscreenElement) setMaxed(false);
+  });
+
   function toggleFullscreen() {
     if (document.fullscreenElement) return document.exitFullscreen();
     var v = $('viewer');
@@ -774,6 +871,7 @@ summary::-webkit-details-marker{display:none}
     var tag = e.target && e.target.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'BUTTON' || tag === 'LI') return;
     if ((e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.metaKey && !e.altKey) toggleFullscreen();
+    else if ((e.key === 'm' || e.key === 'M') && !e.ctrlKey && !e.metaKey && !e.altKey) setMaxed(!$('viewer').classList.contains('maxed'));
     else if (e.key === ' ') { e.preventDefault(); togglePlay(); }
     else if (e.key === 'ArrowRight') jump(S.idx + 1, true);
     else if (e.key === 'ArrowLeft') jump(S.idx - 1, true);
