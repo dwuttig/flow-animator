@@ -8,6 +8,14 @@ Open `index.html` in a browser, load a `*.flow.json` file, and watch a packet tr
 
 No install, no dependencies, no build step. Node is only needed for the optional command-line tools.
 
+## Docker
+
+```
+docker compose up --build   # viewer at http://localhost:8080
+```
+
+Put your own `*.flow.json` files in `./flows`; they are served at `/flows/<name>.flow.json`.
+
 ---
 
 ## For AI agents: your task
