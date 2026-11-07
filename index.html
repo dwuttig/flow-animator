@@ -915,7 +915,25 @@ summary::-webkit-details-marker{display:none}
       }).catch(function () {});
     }, 1500);
   }
-  var flowParam = params.get('flow');
+  var SESSION_KEY = 'flow-animator.session';
+  function readSession() { try { return JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null'); } catch (e) { return null; } }
+  function saveSession() {
+    try {
+      var n = saver.name();
+      if (!n || !S.model) { sessionStorage.removeItem(SESSION_KEY); return; }
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify({ flow: n, idx: S.idx, playing: S.playing, x: window.scrollX, y: window.scrollY, sx: $('stage').scrollLeft }));
+    } catch (e) {}
+  }
+  function restoreSession(name) {
+    var s = readSession();
+    if (!s || s.flow !== name || !S.model) return;
+    S.playing = !!s.playing && !S.reduced;
+    jump(s.idx || 0, !S.playing);
+    requestAnimationFrame(function () { $('stage').scrollLeft = s.sx || 0; window.scrollTo(s.x || 0, s.y || 0); });
+  }
+  window.addEventListener('pagehide', saveSession);
+  var saved = !src && !embedded ? readSession() : null;
+  var flowParam = params.get('flow') || (saved && saved.flow);
   gateway.available().then(function (up) {
     S.apiUp = up; picker.setApi(up);
     if (editor) editor.refresh();
@@ -950,3 +968,4 @@ summary::-webkit-details-marker{display:none}
 </script>
 </body>
 </html>
+        restoreSession(flowParam.replace(/\.flow\.json$/i, ''));
