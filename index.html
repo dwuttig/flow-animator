@@ -76,6 +76,8 @@ dialog .row{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
 .ef input[type=text],.ef select{font:inherit;font-size:13px;color:var(--text);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:3px 6px;min-width:90px}
 .enum{min-width:30px;padding:3px 8px}
 #editBtn[aria-pressed=true]{background:var(--card);border-color:var(--hot)}
+#note{margin:2px 0 0;font-size:12px;color:var(--text2);min-height:1em}
+#flowPick{font:inherit;font-size:13px;color:var(--text);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:3px 6px;max-width:260px}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (prefers-reduced-motion:reduce){.edge,.body{transition:none}}
 </style>
@@ -88,8 +90,10 @@ dialog .row{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
       <h1 id="title">Flow animator</h1>
       <p id="desc"></p>
       <p id="src"></p>
+      <p id="note" role="status" aria-live="polite"></p>
     </div>
     <div class="tools">
+      <span id="pickHost"></span>
       <button id="openBtn" type="button">Open file…</button>
       <button id="pasteBtn" type="button">Paste JSON…</button>
       <button id="sampleBtn" type="button">Built-in example</button>
@@ -140,6 +144,9 @@ dialog .row{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
 <script src="flow-core.js"></script>
 <script src="src/flow-library/apply-edit/apply-edit.js"></script>
 <script src="src/playback/edit-flow/edit-flow.js"></script>
+<script src="src/playback/flow-gateway/flow-gateway.js"></script>
+<script src="src/playback/save-flow/save-flow.js"></script>
+<script src="src/playback/pick-flow/pick-flow.js"></script>
 <script id="sample-flow" type="application/json">{
   "$schema": "../flow.schema.json",
   "format": "flow-animator/1",
@@ -440,9 +447,58 @@ dialog .row{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
     show: function (text, name) { loadText(text, name); },
     jumpToStep: function (i) { jump(beatOf(i), true); },
     report: function (errors, warnings) { showIssues(errors, warnings, 'edit', true); },
-    pause: function () { S.playing = false; }
+    pause: function () { S.playing = false; },
+    canSave: function () { return S.apiUp; },
+    save: function () { return saver.save(); },
+    saveAs: function () { return saver.saveAs(); },
+    canReload: function () { return !!saver.name(); },
+    reload: function () { if (!editor.isDirty() || confirm('Discard unsaved edits and reload the stored version?')) saver.reload(); }
   }, document, C, window.FlowEdits) : null;
   function discardOk() { return !(editor && editor.isDirty()) || confirm('Discard unsaved edits?'); }
+
+  /* ---------- storage (slices flow-gateway, save-flow, pick-flow) ---------- */
+
+  function getToken() { try { return sessionStorage.getItem('flowToken') || ''; } catch (e) { return ''; } }
+  function setToken(t) { try { sessionStorage.setItem('flowToken', t); } catch (e) {} }
+  var gateway = window.FlowGateway.create({ getToken: getToken });
+  var noteTimer = null;
+  function notify(msg) {
+    $('note').textContent = msg;
+    clearTimeout(noteTimer);
+    noteTimer = setTimeout(function () { $('note').textContent = ''; }, 6000);
+  }
+  function srcLabel() {
+    var n = saver.name();
+    return n ? 'Stored flow: ' + n + (saver.revision() ? ' · revision ' + saver.revision() : '') : null;
+  }
+  var saver = window.FlowSaver.create({
+    getText: function () { return S.text || ''; },
+    show: function (text, name) { loadText(text, name); },
+    markClean: function () { if (editor) editor.markClean(); },
+    report: function (errors, warnings) { showIssues(errors, warnings, 'save', true); },
+    notify: notify,
+    askName: function (def) { return window.prompt('Save as (name ends in .flow.json):', def); },
+    askToken: function () { var t = window.prompt('This server needs an access token:'); if (t) setToken(t); return t; },
+    confirm: function (m) { return window.confirm(m); },
+    changed: function () { var l = srcLabel(); if (l) $('src').textContent = l; picker.select(saver.name()); picker.refresh(); }
+  }, gateway);
+  var picker = window.FlowPicker.create(document, gateway, function (name) { if (discardOk()) openStored(name); else picker.select(saver.name()); });
+
+  function openStored(name) {
+    return gateway.load(name).then(function (r) {
+      if (!r.ok && r.kind === 'unauthorized') {
+        var t = window.prompt('This server needs an access token:');
+        if (t) { setToken(t); return openStored(name); }
+      }
+      if (!r.ok) { notify('Could not open ' + name + ': ' + (r.message || r.kind)); picker.select(saver.name()); return r; }
+      var res = loadText(r.text, name);
+      if (res.ok) { saver.setSource(name, r.revision); picker.select(name); $('src').textContent = srcLabel() || ('Source: ' + name); }
+      return r;
+    });
+  }
+
+  /* Loads that do not come from the Flow Library: forget the stored name. */
+  function loadLocal(text, name) { saver.clearSource(); picker.select(null); return loadText(text, name); }
 
   /* ---------- loading ---------- */
 
@@ -479,7 +535,7 @@ dialog .row{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
     S.name = name; S.text = text;
     S.model = res.model; S.geo = res.geometry;
     render(res.model, res.geometry);
-    $('src').textContent = 'Source: ' + name;
+    $('src').textContent = (saver.name() === name && srcLabel()) || ('Source: ' + name);
     showIssues([], res.warnings, name, false);
     S.finished = false;
     S.playing = !S.reduced; // a freshly loaded flow starts playing
@@ -525,15 +581,15 @@ dialog .row{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
   $('openBtn').addEventListener('click', function () { if (discardOk()) $('file').click(); });
   $('file').addEventListener('change', function (e) {
     var f = e.target.files[0]; if (!f) return;
-    f.text().then(function (t) { loadText(t, f.name); });
+    f.text().then(function (t) { loadLocal(t, f.name); });
     e.target.value = '';
   });
   $('pasteBtn').addEventListener('click', function () { if (discardOk()) $('dlg').showModal(); });
   $('dlg').addEventListener('close', function () {
-    if ($('dlg').returnValue === 'ok' && $('ta').value.trim()) loadText($('ta').value, 'pasted JSON');
+    if ($('dlg').returnValue === 'ok' && $('ta').value.trim()) loadLocal($('ta').value, 'pasted JSON');
   });
   $('sampleBtn').addEventListener('click', function () {
-    if (discardOk()) loadText($('sample-flow').textContent, 'built-in example');
+    if (discardOk()) loadLocal($('sample-flow').textContent, 'built-in example');
   });
 
   window.addEventListener('dragenter', function (e) { e.preventDefault(); $('drop').hidden = false; });
@@ -542,7 +598,7 @@ dialog .row{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
   window.addEventListener('drop', function (e) {
     e.preventDefault(); $('drop').hidden = true;
     var f = e.dataTransfer && e.dataTransfer.files[0];
-    if (f && discardOk()) f.text().then(function (t) { loadText(t, f.name); });
+    if (f && discardOk()) f.text().then(function (t) { loadLocal(t, f.name); });
   });
 
   window.addEventListener('keydown', function (e) {
@@ -557,7 +613,7 @@ dialog .row{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
   // public API for scripts, tests and agents driving a browser
   window.FlowAnimator = {
     load: function (input) {
-      return loadText(typeof input === 'string' ? input : JSON.stringify(input), 'API call');
+      return loadLocal(typeof input === 'string' ? input : JSON.stringify(input), 'API call');
     },
     validate: function (input) {
       var p = typeof input === 'string' ? C.parse(input) : { doc: input, errors: [] };
@@ -576,20 +632,51 @@ dialog .row{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
   var src = params.get('src');
   var embedded = $('flow-data');
   requestAnimationFrame(frame);
-  if (src) {
+
+  picker.mount($('pickHost'));
+  window.addEventListener('keydown', function (e) {
+    if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S') && editor && editor.isActive() && S.apiUp) {
+      e.preventDefault(); saver.save();
+    }
+  });
+  function watchStored(name, rev) {
+    setInterval(function () {
+      if (saver.name() !== name || (editor && editor.isDirty())) return;
+      gateway.load(name, { ifNoneMatch: saver.revision() }).then(function (r) {
+        if (r.ok && !r.notModified && r.text) { loadText(r.text, name); saver.setSource(name, r.revision); $('src').textContent = srcLabel() || ('Source: ' + name); }
+      }).catch(function () {});
+    }, 1500);
+  }
+  var flowParam = params.get('flow');
+  gateway.available().then(function (up) {
+    S.apiUp = up;
+    if (editor) editor.refresh();
+    return picker.refresh();
+  }).then(function () {
+    if (flowParam) {
+      return openStored(flowParam).then(function (r) {
+        if (!r.ok) { loadLocal($('sample-flow').textContent, 'built-in example'); return; }
+        if (params.get('watch')) watchStored(flowParam);
+      });
+    }
+  });
+
+  if (flowParam) {
+    // handled above once the gateway knows whether the API exists
+  } else if (src) {
     loadFromUrl(src).then(function (t) {
       var last = t;
-      loadText(t, src);
+      loadLocal(t, src);
       if (params.get('watch')) {
         setInterval(function () {
           loadFromUrl(src).then(function (nt) { if (nt !== last && !(editor && editor.isDirty())) { last = nt; loadText(nt, src); } }).catch(function () {});
         }, 1500);
       }
-    }).catch(function (e) { loadText($('sample-flow').textContent, 'built-in example'); fetchFailed(src, e); });
+    }).catch(function (e) { loadLocal($('sample-flow').textContent, 'built-in example'); fetchFailed(src, e); });
   } else if (embedded) {
-    loadText(embedded.textContent, 'embedded flow');
+    loadLocal(embedded.textContent, 'embedded flow');
   } else {
-    loadText($('sample-flow').textContent, 'built-in example');
+    loadLocal($('sample-flow').textContent, 'built-in example');
   }
 })();
 </script>

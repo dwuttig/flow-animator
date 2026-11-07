@@ -1,6 +1,6 @@
 # Flow storage and loading
 
-- Status: proposed
+- Status: implemented (browser Download stays in the editor panel; a separate viewer-only Download and a Copy link action were not added)
 - Plan: `docs/plans/flow-storage.md`
 - Bounded context: Flow Library (upstream). Consumed by Playback (viewer and editor mode) and wired by Distribution.
 - Slice(s): new `flow-http-api` and `flow-revision` in Flow Library; new `flow-gateway`, `pick-flow`, `save-flow` in Playback; `nginx-api-proxy` in Distribution.

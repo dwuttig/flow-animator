@@ -34,6 +34,16 @@ Click **Edit** in the viewer to change the flow in the browser: title, groups, n
 
 ---
 
+## Storing and loading flows
+Flows are `*.flow.json` files in `FLOW_DIR` (Docker: `./flows`). The MCP server also serves a small HTTP API on its port; nginx exposes it to the viewer at `/api/`:
+
+- `GET /api/flows` lists flows with title, counts, `revision` and `modifiedAt`.
+- `GET /api/flows/<name>` returns the flow with an `ETag` (the revision).
+- `PUT /api/flows/<name>` validates and saves. `If-Match: "<revision>"` rejects a stale save with `412`; `If-None-Match: *` means create only; an invalid flow returns `422` with the errors. Without these headers the last write wins.
+- `DELETE /api/flows/<name>` (same `If-Match` rule). With `MCP_TOKEN` set, send `Authorization: Bearer <token>` on every call.
+
+Viewer: pick a stored flow from the list, or open `/?flow=<name>` (add `&watch=1` to follow changes). In editor mode, **Save** (Ctrl+S), **Save as...** and **Reload** use this API. MCP write tools accept `expected_revision` for the same conflict check. Without the API the viewer stays read-only and you can **Download** the flow instead.
+
 ## For AI agents: your task
 
 Produce **one file** named `<topic>.flow.json` that describes the architecture or flow you were asked to explain.

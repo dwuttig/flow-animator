@@ -24,6 +24,9 @@ WORKDIR /usr/share/nginx/html
 COPY index.html flow-core.js flow.schema.json ./
 COPY src/flow-library/apply-edit/apply-edit.js ./src/flow-library/apply-edit/
 COPY src/playback/edit-flow/edit-flow.js ./src/playback/edit-flow/
+COPY src/playback/flow-gateway/flow-gateway.js ./src/playback/flow-gateway/
+COPY src/playback/save-flow/save-flow.js ./src/playback/save-flow/
+COPY src/playback/pick-flow/pick-flow.js ./src/playback/pick-flow/
 COPY examples/ ./examples/
 
 # User flow files live here. Mount a volume to serve your own *.flow.json

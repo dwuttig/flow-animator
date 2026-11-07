@@ -34,6 +34,10 @@ One vocabulary for code, docs, specs, agents and conversation. If a word here an
 | **Flow store** | The directory of flow files and the operations on it (list, read, write, delete). |
 | **Edit** | A single change to a Flow (add Node, move Step...). Applied, validated, then persisted, or rejected with Violations. |
 | **Tool** | An MCP-exposed Edit or query. |
+| **Flow name** | The file name that identifies a stored Flow, e.g. `orders.flow.json`. |
+| **Revision** | Content hash of a stored Flow, used to detect that it changed since it was loaded. |
+| **Conflict** | A save or delete that carried an older Revision than the stored one; rejected, nothing written. |
+| **Flow API** | The HTTP interface of the Flow Library (`/api/flows`). |
 
 ## Distribution (generic)
 | Term | Meaning |

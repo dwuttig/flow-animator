@@ -8,6 +8,8 @@
  *   host.jumpToStep(i)       move Playback to the Beat of step i
  *   host.report(errs, warns) show Violations
  *   host.pause()             stop the animation while editing
+ * Optional (storage, slice save-flow): host.canSave() -> boolean, host.save(), host.saveAs(),
+ *   host.canReload() -> boolean, host.reload(). When canSave() is true the panel shows Save buttons.
  *
  *   var editor = FlowEditor.create(host, document, FlowCore, FlowEdits);
  */
@@ -135,6 +137,11 @@
     var bar = h('div', 'ebar', null, mount);
     button(bar, 'Undo', function () { stepHistory(undo, redo); }).disabled = !undo.length;
     button(bar, 'Redo', function () { stepHistory(redo, undo); }).disabled = !redo.length;
+    if (host.canSave && host.canSave()) {
+      button(bar, 'Save', function () { host.save(); }, 'Save to the server (Ctrl+S)');
+      button(bar, 'Save as…', function () { host.saveAs(); }, 'Save under a new name');
+      if (host.canReload && host.canReload()) button(bar, 'Reload', function () { host.reload(); }, 'Discard edits and load the stored version');
+    }
     button(bar, 'Download', download, 'Save as .flow.json');
     button(bar, 'Copy JSON', function () {
       var t = JSON.stringify(draft, null, 2) + '\n';
@@ -217,6 +224,10 @@
     },
     isActive: function () { return active; },
     isDirty: function () { return dirty; },
+    /* The Draft equals what is stored (called by the host after a successful save). */
+    markClean: function () { dirty = false; renderPanel(); },
+    /* Re-render the panel (e.g. when the server became reachable). */
+    refresh: function () { renderPanel(); },
     /* Called by the viewer after every load; ignores loads that came from this editor. */
     onLoaded: function (text) {
       if (text === lastEmitted) return;
