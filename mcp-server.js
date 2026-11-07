@@ -68,6 +68,8 @@ var TOOLS = [
   { name: 'update_step', description: 'Change the step at a 0-based index.' + NULLNOTE,
     inputSchema: obj({ index: INT, from: STR, to: STR, label: STR, detail: { type: ['string', 'null'] }, payload: { type: ['string', 'null'] }, kind: KIND, together: { type: ['boolean', 'null'] } }, ['index']) },
   { name: 'remove_step', description: 'Remove the step at a 0-based index.', inputSchema: obj({ index: INT }, ['index']) },
+  { name: 'set_parallel', description: 'Make the step at "index" play in one beat with exactly the steps listed in "with" (0-based). Chosen steps are moved next to it and stored as together flags; steps no longer chosen become their own beat. Empty "with" = plays alone.',
+    inputSchema: obj({ index: INT, with: { type: 'array', items: INT } }, ['index', 'with']) },
   { name: 'move_step', description: 'Move a step from one 0-based index to another.', inputSchema: obj({ index: INT, to_index: INT }, ['index', 'to_index']) }
 ];
 
@@ -80,7 +82,7 @@ TOOLS.forEach(function (t) {
 TOOLS.filter(function (t) { return t.name === 'read_flow'; })[0].inputSchema.properties.with_revision =
   { type: 'boolean', description: 'Return { revision, document } instead of the bare document.' };
 
-var EDIT_OPS = ['set_meta', 'add_group', 'update_group', 'remove_group', 'add_node', 'update_node', 'remove_node', 'add_step', 'update_step', 'remove_step', 'move_step'];
+var EDIT_OPS = ['set_meta', 'add_group', 'update_group', 'remove_group', 'add_node', 'update_node', 'remove_node', 'add_step', 'update_step', 'remove_step', 'move_step', 'set_parallel'];
 
 function preconditions(a) {
   return typeof a.expected_revision === 'string' && a.expected_revision ? { ifMatch: a.expected_revision } : {};

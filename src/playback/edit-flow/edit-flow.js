@@ -137,6 +137,25 @@
     return b;
   }
 
+  /* Multi-select of the other steps that play in the same Beat as step i (edit set_parallel). */
+  function parallelPicker(row, steps, i) {
+    var mates = [];
+    Core.buildBeats(steps).forEach(function (b) { if (b.indexOf(i) >= 0) mates = b.filter(function (j) { return j !== i; }); });
+    var d = cols(h('details', 'ef epar', null, row), 12);
+    h('summary', null, 'Together with: ' + (mates.length ? mates.map(function (j) { return j + 1; }).join(', ') : 'none'), d);
+    steps.forEach(function (o, j) {
+      if (j === i) return;
+      var l = h('label', null, null, d);
+      var cb = h('input', null, null, l); cb.type = 'checkbox'; cb.checked = mates.indexOf(j) >= 0;
+      h('span', null, ' ' + (j + 1) + '. ' + (o.label || ''), l);
+      cb.addEventListener('change', function () {
+        var next = mates.filter(function (m) { return m !== j; });
+        if (cb.checked) next.push(j);
+        edit('set_parallel', { index: i, with: next });
+      });
+    });
+  }
+
   function renderPanel() {
     if (!mount) return;
     var keepScroll = mount.scrollTop;
@@ -212,10 +231,7 @@
       field(row, 'Detail', s.detail, function (v) { edit('update_step', { index: i, detail: nullable(v) }); }, { span: 6 });
       field(row, 'Payload', s.payload, function (v) { edit('update_step', { index: i, payload: nullable(v) }); }, { span: 3 });
       select(row, 'Kind', [''].concat(KINDS), s.kind, function (v) { edit('update_step', { index: i, kind: nullable(v) }); }, 3);
-      var tl = cols(h('label', 'ef', null, row), 2);
-      h('span', null, 'Together', tl);
-      var cb = h('input', null, null, tl); cb.type = 'checkbox'; cb.checked = !!s.together;
-      cb.addEventListener('change', function () { edit('update_step', { index: i, together: cb.checked ? true : null }); });
+      parallelPicker(row, steps, i);
       button(row, '↑', function () { edit('move_step', { index: i, to_index: i - 1 }); }, 'Move up', 1).disabled = i === 0;
       button(row, '↓', function () { edit('move_step', { index: i, to_index: i + 1 }); }, 'Move down', 1).disabled = i === steps.length - 1;
       button(row, 'Remove', function () { edit('remove_step', { index: i }); }, null, 2);

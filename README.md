@@ -28,7 +28,7 @@ Click **Edit** in the viewer to change the flow in the browser: title, groups, n
 - Local stdio: `node mcp-server.js` (database `./flows/flows.db`; `FLOW_DB` changes it), or `docker run -i --rm -v flow-animator-data:/data flow-animator-mcp node mcp-server.js` to share the compose volume.
 - Local HTTP: `node mcp-server.js --http 8081`.
 - Client config (stdio): `{"mcpServers":{"flow-animator":{"command":"node","args":["/path/to/mcp-server.js"],"env":{"FLOW_DB":"/path/to/flows.db"}}}}`. For HTTP use the URL `http://localhost:8081/mcp`.
-- Tools: `list_flows`, `read_flow`, `validate_flow`, `create_flow`, `delete_flow`, `set_meta`, `add_group`/`update_group`/`remove_group`, `add_node`/`update_node`/`remove_node`, `add_step`/`update_step`/`remove_step`/`move_step`. Resources: `flow://schema`, `flow://guide`.
+- Tools: `list_flows`, `read_flow`, `validate_flow`, `create_flow`, `delete_flow`, `set_meta`, `add_group`/`update_group`/`remove_group`, `add_node`/`update_node`/`remove_node`, `add_step`/`update_step`/`remove_step`/`move_step`/`set_parallel`. Resources: `flow://schema`, `flow://guide`.
 - Tests: `node --test`.
 - Linux note: with `FLOW_STORE=files` the container runs as a non-root user; if `./flows` is not writable by it, run `chmod a+w flows`.
 

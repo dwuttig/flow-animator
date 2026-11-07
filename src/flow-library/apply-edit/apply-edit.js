@@ -103,6 +103,44 @@ var ops = {
   move_step: function (doc, a) {
     var s = list(doc, 'steps'); checkIdx(s, a.index, 'step'); checkIdx(s, a.to_index, 'target');
     s.splice(a.to_index, 0, s.splice(a.index, 1)[0]);
+  },
+  /* set_parallel: the step at `index` plays in one Beat with exactly the steps listed in `with`
+   * (0-based indexes). Stored as `together` flags, so a Beat stays a run of adjacent steps:
+   * the chosen steps are moved next to `index`; steps that were in the Beat but are no longer chosen
+   * keep their relative order as their own Beat. `with: []` makes the step play alone. */
+  set_parallel: function (doc, a) {
+    var s = list(doc, 'steps'); checkIdx(s, a.index, 'step');
+    var others = a.with === undefined || a.with === null ? [] : a.with;
+    if (!Array.isArray(others)) throw fail('"with" must be an array of step indexes');
+    var group = [a.index];
+    others.forEach(function (j) {
+      checkIdx(s, j, 'with');
+      if (j !== a.index && group.indexOf(j) < 0) group.push(j);
+    });
+    group.sort(function (x, y) { return x - y; });
+    var beats = [];
+    s.forEach(function (st, i) {
+      if (st.together === true && beats.length) beats[beats.length - 1].push(i); else beats.push([i]);
+    });
+    var rest = [], at = 0;
+    beats.forEach(function (b) {
+      var keep = b.filter(function (i) { return group.indexOf(i) < 0; });
+      if (b.indexOf(a.index) < 0) { if (keep.length) rest.push(keep); return; }
+      // the step's old beat: leftovers before it stay before, leftovers after it stay after
+      var before = keep.filter(function (i) { return i < a.index; }), after = keep.filter(function (i) { return i > a.index; });
+      if (before.length) rest.push(before);
+      at = rest.length; rest.push(group);
+      if (after.length) rest.push(after);
+    });
+    var out = [];
+    rest.forEach(function (b) {
+      b.forEach(function (i, k) {
+        var st = s[i];
+        if (k === 0) delete st.together; else st.together = true;
+        out.push(st);
+      });
+    });
+    doc.steps = out;
   }
 };
 

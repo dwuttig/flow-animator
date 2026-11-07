@@ -26,3 +26,22 @@ test('move_step reorders', function () {
   var out = E.apply(d, 'move_step', { index: 1, to_index: 0 });
   assert.strictEqual(out.steps[0].label, 'back');
 });
+
+function labels(d) { return d.steps.map(function (s) { return s.label + (s.together ? '*' : ''); }).join(' '); }
+var PAR = { title: 'T', nodes: DOC.nodes, steps: ['a', 'b', 'c', 'd'].map(function (l) { return { from: 'a', to: 'b', label: l }; }) };
+
+test('set_parallel moves chosen steps next to the step and flags them together', function () {
+  assert.strictEqual(labels(E.apply(PAR, 'set_parallel', { index: 0, with: [2] })), 'a c* b d');
+  assert.strictEqual(labels(E.apply(PAR, 'set_parallel', { index: 3, with: [0, 1] })), 'c a b* d*');
+});
+
+test('set_parallel with an empty selection splits the beat, keeping order', function () {
+  var d = E.apply(PAR, 'set_parallel', { index: 1, with: [0, 2] });
+  assert.strictEqual(labels(d), 'a b* c* d');
+  assert.strictEqual(labels(E.apply(d, 'set_parallel', { index: 1, with: [] })), 'a b c d');
+  assert.strictEqual(labels(E.apply(d, 'set_parallel', { index: 1, with: [0] })), 'a b* c d');
+});
+
+test('set_parallel rejects bad indexes', function () {
+  assert.throws(function () { E.apply(PAR, 'set_parallel', { index: 0, with: [9] }); }, function (e) { return e.userError; });
+});

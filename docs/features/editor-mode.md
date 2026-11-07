@@ -9,7 +9,7 @@ Flow files are written by AI agents, but people often need to make small correct
 ## Goals
 - Edit a loaded flow in the same page: an **Edit** toggle in `index.html` switches between view and edit; the animation can still be played while editing.
 - Edit **nodes**: add, rename, change subtitle, shape and group, duplicate, delete.
-- Edit **steps**: form for `label`, `detail`, `payload`, `kind`, `from`, `to`, `together`; add, duplicate, delete.
+- Edit **steps**: form for `label`, `detail`, `payload`, `kind`, `from`, `to`, and a **Together with** multi-select of the other steps in the same beat (`set_parallel`: chosen steps move next to this one; the file format keeps `together` flags); add, duplicate, delete.
 - **Create a step by dragging** from one node to another (`from`/`to` prefilled, then the form opens).
 - **Reorder steps** by dragging in the step list (changes animation order).
 - **Edit groups**: create, rename, delete, set colour, assign nodes.

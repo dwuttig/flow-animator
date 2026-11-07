@@ -33,6 +33,7 @@ Tools (all return the validation result; mutations also return the new stats):
 | `add_group`, `update_group`, `remove_group` | Manage groups |
 | `add_node`, `update_node`, `remove_node` | Manage nodes; `remove_node` refuses if steps reference it unless `cascade: true` |
 | `add_step`, `update_step`, `remove_step`, `move_step` | Manage steps by 0-based index; `add_step` takes optional `at` |
+| `set_parallel` | `index` + `with` (indexes): the step plays in one beat with exactly those steps; they are moved next to it and stored as `together` flags |
 | `delete_flow` | Remove a file (requires `confirm: true`) |
 
 Resources: `flow://schema` (flow.schema.json) and `flow://guide` (README format section) so agents can read the rules.
