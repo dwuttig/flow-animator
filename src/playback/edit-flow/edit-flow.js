@@ -124,10 +124,17 @@
     while (ids.indexOf(prefix + i) >= 0) i++;
     return prefix + i;
   }
-  function section(title) {
+  function section(title, count) {
     var s = h('details', 'esec', null, mount); s.open = true;
-    h('summary', null, title, s);
+    var sm = h('summary', null, title, s);
+    if (count != null) h('span', 'ecount', String(count), sm);
     return h('div', 'ebody', null, s);
+  }
+
+  function addBtn(body, label, fn) {
+    var b = button(h('div', 'eadd', null, body), label, fn);
+    b.className = 'eaddbtn';
+    return b;
   }
 
   function renderPanel() {
@@ -159,7 +166,7 @@
     field(mb, 'Description', draft.description, function (v) { edit('set_meta', { description: nullable(v) }); });
     select(mb, 'Direction', ['LR', 'TB'], (draft.layout && draft.layout.direction) || 'LR', function (v) { edit('set_meta', { direction: v }); });
 
-    var gb = section('Groups');
+    var gb = section('Groups', (draft.groups || []).length);
     (draft.groups || []).forEach(function (grp) {
       var row = h('div', 'erow', null, gb);
       cols(h('code', 'eid', grp.id, row), 3);
@@ -167,12 +174,12 @@
       select(row, 'Color', [''].concat(Core.COLORS), grp.color, function (v) { edit('update_group', { id: grp.id, color: nullable(v) }); }, 3);
       button(row, 'Remove', function () { edit('remove_group', { id: grp.id, cascade: true }); });
     });
-    button(gb, '+ Group', function () {
+    addBtn(gb, '+ Group', function () {
       var id = freshId('group', draft.groups || []);
       edit('add_group', { id: id, label: id });
     });
 
-    var nb = section('Nodes');
+    var nb = section('Nodes', (draft.nodes || []).length);
     var groupIds = [''].concat((draft.groups || []).map(function (x) { return x.id; }));
     (draft.nodes || []).forEach(function (node) {
       var row = h('div', 'erow', null, nb);
@@ -187,12 +194,12 @@
         edit('remove_node', { id: node.id, cascade: true });
       }, null, 4);
     });
-    button(nb, '+ Node', function () {
+    addBtn(nb, '+ Node', function () {
       var id = freshId('node', draft.nodes || []);
       edit('add_node', { id: id, label: id });
     });
 
-    var sb = section('Steps');
+    var sb = section('Steps', (draft.steps || []).length);
     var ids = (draft.nodes || []).map(function (x) { return x.id; });
     var steps = draft.steps || [];
     steps.forEach(function (s, i) {
@@ -213,7 +220,7 @@
       button(row, '↓', function () { edit('move_step', { index: i, to_index: i + 1 }); }, 'Move down', 1).disabled = i === steps.length - 1;
       button(row, 'Remove', function () { edit('remove_step', { index: i }); }, null, 2);
     });
-    button(sb, '+ Step', function () {
+    addBtn(sb, '+ Step', function () {
       edit('add_step', { from: ids[0], to: ids[ids.length > 1 ? 1 : 0], label: 'New step' });
     }).disabled = !ids.length;
     mount.scrollTop = keepScroll;

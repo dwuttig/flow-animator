@@ -77,13 +77,20 @@ body.editing #app{max-width:1560px}
 @media (max-width:959px){#editor{max-height:50vh}}
 .ebar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;position:sticky;top:-10px;background:var(--bg);padding:6px 0;z-index:1}
 .edirty{color:var(--warn);font-size:12px}
-.esec summary{cursor:pointer;font-weight:500;margin:8px 0 4px}
+.esec{margin:12px 0 0;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.esec summary{cursor:pointer;font-weight:600;font-size:14px;margin:0;padding:8px 10px;background:var(--card);display:flex;align-items:center;gap:8px}
+.esec[open]>summary{border-bottom:1px solid var(--line)}
+.esec summary .ecount{font-size:11px;font-weight:500;color:var(--text2);border:1px solid var(--line);border-radius:10px;padding:0 7px}
+.esec>.ebody{padding:0 10px 10px}
 .ebody{display:flex;flex-direction:column;width:100%}
 .erow{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:6px 8px;align-items:end;padding:8px 0;border-top:1px solid var(--line);width:100%}
 .erow>.ef{grid-column:span 4}
 .erow>button{grid-column:span 2;justify-self:stretch;height:28px;padding:0 6px}
 .erow>.eid{grid-column:span 4;align-self:center;overflow:hidden;text-overflow:ellipsis;font:12px ui-monospace,Menlo,Consolas,monospace}
-.ebody>button{align-self:flex-start;margin-top:6px}
+.eadd{margin-top:10px;padding-top:10px;border-top:2px solid var(--line)}
+.eaddbtn{width:100%;height:30px;border:1px dashed var(--text2);border-radius:6px;background:transparent;color:var(--text);cursor:pointer;font-weight:500}
+.eaddbtn:hover:not(:disabled){background:var(--card)}
+.eaddbtn:disabled{opacity:.5;cursor:default}
 .ef{display:flex;flex-direction:column;font-size:11px;color:var(--text2);min-width:0}
 .ef input[type=text],.ef select{width:100%;min-width:0;font:inherit;font-size:13px;color:var(--text);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:3px 6px;height:28px}
 .ef.echk{flex-direction:row;align-items:center;gap:6px;height:28px}
