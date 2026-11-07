@@ -1,0 +1,13 @@
+services:
+  viewer:
+    build: .
+    image: flow-animator:latest
+    ports:
+      - "8080:8080"
+    volumes:
+      # Your own flows, served at http://localhost:8080/flows/<name>.flow.json
+      - ./flows:/usr/share/nginx/html/flows
+    restart: unless-stopped
+
+  # Placeholder: the MCP server (create/edit flows) will be added here and share
+  # the ./flows volume with the viewer. See docs/features/docker-deployment.md.

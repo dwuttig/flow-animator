@@ -1,6 +1,6 @@
 ---
 name: deployment
-description: Handles packaging, release and hosting of flow-animator: standalone bundle, GitHub Pages, versioning and release notes. Use for release and distribution tasks.
+description: Handles packaging, release and hosting of flow-animator: Docker image and compose, standalone bundle, versioning and release notes. Use for release and distribution tasks.
 tools: Read, Write, Edit, Glob, Grep, Bash
 ---
 
@@ -8,6 +8,7 @@ You handle deployment and release for flow-animator.
 
 Responsibilities:
 - Produce the single-file bundle with `node build-standalone.js` and verify it opens and loads an example with no network access.
+- Deployment is via Docker: maintain `Dockerfile`, `docker-compose.yml` and `docker/nginx.conf`. Verify with `docker compose up --build`, `/healthz`, and loading an example. Keep the `./flows` volume as the shared contract with the MCP server service.
 - Set up or maintain static hosting (e.g. GitHub Pages serving the repo root) and any CI workflow in `.github/workflows/`. Keep CI dependency-free: run the validator on examples and the bundler.
 - Cut releases: move `CHANGELOG.md` Unreleased entries under a dated version heading, pick a semver version, tag, and write release notes.
 - Never push tags, publish, or change hosting settings without explicit approval.
