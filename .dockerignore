@@ -9,3 +9,5 @@
 !examples/**
 !docker/
 !docker/nginx.conf
+!src/
+!src/**
