@@ -29,7 +29,7 @@ A person or AI agent describes a system as a **Flow** (Nodes, Groups, ordered St
 - **Flow Modeling → everyone**: upstream. Others are *conformists*: they consume the model and the published format as is and never redefine it.
 - **Layout → Playback**: customer/supplier. Playback consumes Geometry; Layout does not know about Playback.
 - **Flow Library → Flow Modeling**: calls the `validate` public API for every Edit; never re-implements rules. Its MCP layer is an *open host service* with its own vocabulary of Tools, translated to Edits by an anti-corruption mapping in the slice.
-- **Playback → Flow Library (apply-edit only)**: editor mode reuses the pure Edit engine so Edits behave the same in the browser and over MCP. Playback never touches the Flow store or MCP transport.
+- **Playback → Flow Library (apply-edit, Flow API)**: editor mode reuses the pure Edit engine so Edits behave the same in the browser and over MCP. To list, load and save stored Flows Playback calls the Flow Library's HTTP API (`/api/flows`) only through its `flow-gateway` slice, as a conformist. Playback never touches the Flow store or MCP transport directly.
 - **Distribution** only wires and packages; it contains no domain rules.
 
 Dependency rule: contexts depend only on another context's public API (its `index` entry), never on internals. No cycles. Allowed edges: Layout → Modeling, Playback → Modeling/Layout, Playback → Library's pure `apply-edit` (editor mode), Library → Modeling, Distribution → any public API. Modeling depends on nothing.
@@ -41,7 +41,7 @@ Examples:
 - Flow Modeling: `parse-flow`, `validate-flow`, `derive-beats`
 - Layout: `layout-flow`, `route-edges`
 - Playback: `load-flow`, `play-flow`, `scrub-timeline`, `render-diagram`, `edit-flow`
-- Flow Library: `list-flows`, `read-flow`, `create-flow`, `add-node`, `add-step`, `move-step`... plus `mcp-transport`
+- Flow Library: `list-flows`, `read-flow`, `create-flow`, `add-node`, `add-step`, `move-step`... `flow-revision`, `flow-http-api` (list, read, save, delete over HTTP with revision checks), plus `mcp-transport`
 - Distribution: `bundle-standalone`, `validate-cli`, `docker-image`
 
 Layering within a slice stays light: domain logic must not import transport (HTTP, stdio, DOM, fs). I/O sits at the slice edge.

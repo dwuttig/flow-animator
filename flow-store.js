@@ -5,6 +5,7 @@
  */
 'use strict';
 var fs = require('fs');
+var crypto = require('crypto');
 var path = require('path');
 var Core = require('./flow-core.js');
 var Edits = require('./src/flow-library/apply-edit/apply-edit.js');
@@ -35,13 +36,44 @@ Store.prototype.list = function () {
   }).sort().map(function (n) {
     var out = { file: n };
     try {
-      var d = JSON.parse(fs.readFileSync(path.join(self.dir, n), 'utf8'));
+      var full = path.join(self.dir, n), raw = fs.readFileSync(full, 'utf8');
+      out.revision = revisionOf(raw);
+      out.modifiedAt = fs.statSync(full).mtime.toISOString();
+      var d = JSON.parse(raw);
       out.title = d.title || null;
       out.nodes = Array.isArray(d.nodes) ? d.nodes.length : 0;
       out.steps = Array.isArray(d.steps) ? d.steps.length : 0;
     } catch (e) { out.error = 'not valid JSON'; }
     return out;
   });
+};
+
+/* Revision: first 16 hex chars of the SHA-256 of the file bytes. */
+function revisionOf(raw) { return crypto.createHash('sha256').update(raw).digest('hex').slice(0, 16); }
+
+/* Current revision of a stored flow, or null if it does not exist. */
+Store.prototype.revision = function (name) {
+  var full = this.resolve(name);
+  if (!fs.existsSync(full)) return null;
+  return revisionOf(fs.readFileSync(full));
+};
+
+/* Read the document with its revision: { doc, revision, text }. */
+Store.prototype.readWithRevision = function (name) {
+  var full = this.resolve(name);
+  if (!fs.existsSync(full)) throw fail('no such flow: ' + name);
+  var raw = fs.readFileSync(full, 'utf8');
+  try { return { doc: JSON.parse(raw), revision: revisionOf(raw), text: raw }; }
+  catch (e) { throw fail(name + ' is not valid JSON: ' + e.message); }
+};
+
+/* Check a precondition: opts.ifMatch (revision) or opts.ifNoneMatch === '*'. */
+Store.prototype.checkPrecondition = function (name, opts) {
+  opts = opts || {};
+  var cur = this.revision(name);
+  if (opts.ifNoneMatch === '*' && cur !== null) return { ok: false, conflict: true, revision: cur };
+  if (opts.ifMatch !== undefined && opts.ifMatch !== null && opts.ifMatch !== cur) return { ok: false, conflict: true, revision: cur };
+  return null;
 };
 
 Store.prototype.exists = function (name) { return fs.existsSync(this.resolve(name)); };
@@ -53,22 +85,32 @@ Store.prototype.read = function (name) {
   catch (e) { throw fail(name + ' is not valid JSON: ' + e.message); }
 };
 
-/* Validate, then write atomically. Never writes an invalid document. */
-Store.prototype.write = function (name, doc) {
+/* Validate, then write atomically. Never writes an invalid document.
+ * opts.ifMatch / opts.ifNoneMatch: optional preconditions (see checkPrecondition);
+ * a failed one returns { ok:false, conflict:true, revision } and writes nothing. */
+Store.prototype.write = function (name, doc, opts) {
   var full = this.resolve(name);
   var res = Core.loadDoc(doc);
   if (!res.ok) return { ok: false, errors: res.errors, warnings: res.warnings };
+  var pre = this.checkPrecondition(name, opts);
+  if (pre) return pre;
+  var existed = fs.existsSync(full);
   fs.mkdirSync(this.dir, { recursive: true });
   var tmp = full + '.' + process.pid + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify(doc, null, 2) + '\n');
+  var text = JSON.stringify(doc, null, 2) + '\n';
+  fs.writeFileSync(tmp, text);
   fs.renameSync(tmp, full);
-  return { ok: true, errors: [], warnings: res.warnings, stats: stats(res) };
+  return { ok: true, errors: [], warnings: res.warnings, stats: stats(res), revision: revisionOf(text), created: !existed };
 };
 
-Store.prototype.remove = function (name) {
+/* Remove a flow. opts.ifMatch as for write; returns { ok:false, conflict } on mismatch. */
+Store.prototype.remove = function (name, opts) {
   var full = this.resolve(name);
   if (!fs.existsSync(full)) throw fail('no such flow: ' + name);
+  var pre = this.checkPrecondition(name, opts);
+  if (pre) return pre;
   fs.unlinkSync(full);
+  return { ok: true };
 };
 
 function stats(res) {
@@ -84,13 +126,14 @@ function validate(doc) {
 }
 
 /* Load, apply one operation, validate, write only if valid. */
-Store.prototype.edit = function (name, op, args) {
+Store.prototype.edit = function (name, op, args, opts) {
   if (!ops[op]) throw fail('unknown operation ' + op);
   var doc = this.read(name);
   ops[op](doc, args || {});
-  var r = this.write(name, doc);
+  var r = this.write(name, doc, opts);
   if (!r.ok) r.note = 'Change rejected; the file was not modified.';
+  if (r.conflict) r.error = 'conflict: the flow changed since revision ' + (opts && opts.ifMatch) + '; read it again.';
   return r;
 };
 
-module.exports = { Store: Store, ops: ops, validate: validate, fail: fail, SUFFIX: SUFFIX };
+module.exports = { revisionOf: revisionOf, Store: Store, ops: ops, validate: validate, fail: fail, SUFFIX: SUFFIX };

@@ -26,7 +26,7 @@ if (!res.ok) {
 
 var html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
 // Scripts in the order index.html loads them (dependency order).
-var SCRIPTS = ['flow-core.js', 'src/flow-library/apply-edit/apply-edit.js', 'src/playback/edit-flow/edit-flow.js'];
+var SCRIPTS = ['flow-core.js', 'src/flow-library/apply-edit/apply-edit.js', 'src/playback/edit-flow/edit-flow.js', 'src/playback/flow-gateway/flow-gateway.js', 'src/playback/save-flow/save-flow.js', 'src/playback/pick-flow/pick-flow.js'];
 
 function safe(s) { return s.replace(/<\//g, '<\\/'); } // keep "</script" out of inline data
 

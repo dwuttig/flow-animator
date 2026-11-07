@@ -13,6 +13,7 @@ services:
 
   # MCP server: lets agents create/edit flows in the same ./flows folder.
   # Endpoint: http://localhost:8081/mcp  (Streamable HTTP, POST only)
+  # Also serves the Flow API, reached by the viewer at http://localhost:8080/api/flows
   mcp:
     build:
       context: .

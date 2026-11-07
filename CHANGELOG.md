@@ -12,6 +12,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Project now follows Domain-Driven Design: bounded contexts and vertical slices documented in `docs/architecture.md` and `docs/ubiquitous-language.md`; agents, spec and plan templates updated. Code restructuring is proposed in `docs/features/ddd-restructure.md`.
 
 ### Added
+- Flow storage and loading: stored flows get a Revision (content hash); HTTP Flow API (`GET/PUT/DELETE /api/flows[/name]`, ETag, `If-Match`, `If-None-Match: *`) on the MCP server; `expected_revision` and `read_flow` `with_revision` in the MCP tools; viewer flow picker, `?flow=name` links (also with `watch`), and Save / Save as / Reload in editor mode with conflict detection; nginx proxies `/api/` (see `docs/features/flow-storage.md`).
 - Editor mode in the viewer (**Edit** button): change title, Groups, Nodes and Steps with forms, live validation, undo/redo, download or copy the result. Edits live in the shared `src/flow-library/apply-edit/` module, now also used by the MCP server (see `docs/features/editor-mode.md`).
 - Docker deployment: `Dockerfile`, `docker-compose.yml`, nginx config; `./flows` volume for user flows (see `docs/features/docker-deployment.md`).
 - MCP server (`mcp-server.js`, stdio and HTTP) with tools to create, read, validate and edit flow files; `mcp` service in `docker-compose.yml` (see `docs/features/mcp-server.md`).
