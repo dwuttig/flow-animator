@@ -236,6 +236,10 @@ Paste this to any AI agent that can read files in this folder:
 
 ---
 
+## Architecture
+
+Domain-Driven Design with vertical slices. Bounded contexts: Flow Modeling (core: the format and its validation), Layout, Playback (viewer), Flow Library (store + MCP), Distribution (bundle, CLI, Docker). See [docs/architecture.md](docs/architecture.md) for the context map and target layout, and [docs/ubiquitous-language.md](docs/ubiquitous-language.md) for the shared vocabulary.
+
 ## Files
 
 | File | Purpose |
