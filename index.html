@@ -10,7 +10,7 @@
 @media (prefers-color-scheme:dark){:root{--sel:#6FB1F5;--bg:#1f1e1d;--text:#eeece6;--text2:#b4b2a9;--line:rgba(255,255,255,.18);--card:#2a2927;--edge:#888780;--bad:#F7C1C1;--bad-bg:#501313;--warn:#FAC775;--warn-bg:#412402}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif}
-#app{max-width:1120px;margin:0 auto;padding:20px 24px 40px}
+#app{max-width:1440px;margin:0 auto;padding:20px 24px 40px}
 header{display:flex;gap:16px;justify-content:space-between;align-items:flex-start;flex-wrap:wrap}
 h1{font-size:22px;font-weight:500;margin:0}
 #desc{margin:4px 0 0;color:var(--text2);max-width:70ch}
@@ -26,7 +26,7 @@ button:focus-visible,input:focus-visible,li[tabindex]:focus-visible{outline:2px 
 #issues ul{margin:6px 0 0;padding-left:18px}
 #issues code{font:12px ui-monospace,Menlo,Consolas,monospace;margin-right:6px}
 #stage{margin:20px 0 4px;text-align:center;overflow-x:auto}
-#svg{max-width:100%;height:auto;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+#svg{max-width:none;height:auto;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
 .edge{fill:none;stroke:var(--edge);stroke-width:1.5;transition:stroke .2s}
 .k-response{stroke-dasharray:6 4}
 .k-async,.k-event{stroke-dasharray:2 4;stroke-linecap:round}
@@ -47,17 +47,20 @@ button:focus-visible,input:focus-visible,li[tabindex]:focus-visible{outline:2px 
 #legend{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;font-size:12px;color:var(--text2);min-height:8px}
 #legend .chip{display:inline-flex;align-items:center;gap:6px}
 #legend i{width:12px;height:12px;border-radius:3px;background:var(--fill);border:1px solid var(--stroke)}
-#cap{margin:12px auto 0;max-width:820px;background:var(--card);border-radius:12px;padding:12px 16px;min-height:84px}
+#cap{margin:12px 0 0;width:100%;background:var(--card);border-radius:12px;padding:12px 16px;height:160px;overflow-y:auto}
 #cap .line+.line{margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
 #cap .t{font-weight:500}
 #cap .route{color:var(--text2);font-size:13px;margin-left:6px}
 #cap .d{color:var(--text2);margin-top:2px}
 #cap code{display:inline-block;margin-top:4px;font:12px ui-monospace,Menlo,Consolas,monospace;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:1px 8px}
 #controls{display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;margin:14px 0 4px;font-size:13px;color:var(--text2)}
+#controls label{display:inline-flex;align-items:center;gap:6px;line-height:1;white-space:nowrap}
+#controls input{margin:0}
+#controls #count{min-width:3.5em;text-align:center;white-space:nowrap}
 #controls input[type=range]{accent-color:var(--hot)}
-#scrub{width:200px}
+#scrub{flex:1 1 200px;min-width:120px}
 #spd{width:90px}
-#steps{list-style:none;counter-reset:s;margin:14px auto 0;padding:0;max-width:820px}
+#steps{list-style:none;counter-reset:s;margin:14px 0 0;padding:0;width:100%}
 #steps li{counter-increment:s;display:flex;gap:10px;padding:5px 10px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--text2);border-left:3px solid transparent}
 #steps li::before{content:counter(s);min-width:18px;text-align:right;color:var(--text2)}
 #steps li.par::before{content:"+"}
@@ -74,7 +77,11 @@ dialog .row{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
 #editor{margin:16px 0 0;border:1px solid var(--line);border-radius:12px;padding:10px 14px;overflow:auto;font-size:13px}
 #editor[hidden]{display:none}
 #viewer{min-width:0}
-body.editing #app{max-width:1560px}
+#viewer:fullscreen{background:var(--bg);display:flex;flex-direction:column;padding:16px 24px;overflow:auto}
+#viewer:fullscreen #stage{flex:1 1 auto;min-height:0;display:flex;align-items:center;justify-content:safe center;margin:0}
+#viewer:fullscreen #svg{flex:none}
+#viewer:fullscreen #steps{display:none}
+#viewer:fullscreen #cap{width:100%;flex:none}
 @media (min-width:960px){
   body.editing #layout{display:grid;grid-template-columns:minmax(420px,560px) minmax(0,1fr);gap:24px;align-items:start}
   body.editing #editor{position:sticky;top:12px;max-height:calc(100vh - 24px)}
@@ -177,6 +184,7 @@ summary::-webkit-details-marker{display:none}
       <label>Speed <input id="spd" type="range" min="0.5" max="3" step="0.5" value="1"> <span id="spdl">1x</span></label>
       <label><input id="loop" type="checkbox" checked> Loop</label>
       <label><input id="trail" type="checkbox" checked> Trail</label>
+      <button id="fsBtn" type="button" aria-pressed="false" title="Fullscreen (F)">Fullscreen</button>
     </section>
 
     <ol id="steps"></ol>
@@ -329,7 +337,8 @@ summary::-webkit-details-marker{display:none}
     var svg = $('svg');
     svg.textContent = '';
     svg.setAttribute('viewBox', '0 0 ' + geo.width + ' ' + geo.height);
-    svg.style.width = geo.width + 'px';
+    svg.style.width = '100%';
+    svg.style.minWidth = Math.round(geo.width * 0.9) + 'px';
     svg.setAttribute('aria-label', model.title + ': animated flow diagram');
 
     var defs = el('defs', {}, svg);
@@ -425,6 +434,24 @@ summary::-webkit-details-marker{display:none}
   }
   function hidePackets() { S.packets.forEach(function (p) { p.el.style.display = 'none'; }); }
 
+  function followBeat(beat) {
+    var st = $('stage');
+    if (st.scrollWidth <= st.clientWidth + 1) return;
+    var lo = Infinity, hi = -Infinity;
+    beat.forEach(function (si) {
+      var s = S.model.steps[si];
+      [S.nodeEls[s.from], S.nodeEls[s.to]].forEach(function (n) {
+        if (!n) return;
+        var r = n.getBoundingClientRect();
+        lo = Math.min(lo, r.left); hi = Math.max(hi, r.right);
+      });
+    });
+    if (lo === Infinity) return;
+    var sr = st.getBoundingClientRect();
+    var mid = (lo + hi) / 2 - sr.left + st.scrollLeft;
+    st.scrollTo({ left: Math.max(0, mid - st.clientWidth / 2), behavior: 'smooth' });
+  }
+
   function paint() {
     var m = S.model, beat = m.beats[S.idx], act = {}, hl = {}, done = {};
     beat.forEach(function (si) {
@@ -441,6 +468,7 @@ summary::-webkit-details-marker{display:none}
     });
     Object.keys(S.nodeEls).forEach(function (id) { S.nodeEls[id].classList.toggle('hl', !!hl[id]); });
     applySel();
+    followBeat(beat);
     S.liEls.forEach(function (li, si) {
       var bi = beatOf(si);
       li.classList.toggle('active', bi === S.idx);
@@ -730,10 +758,23 @@ summary::-webkit-details-marker{display:none}
     if (f && discardOk()) f.text().then(function (t) { loadLocal(t, f.name); });
   });
 
+  function toggleFullscreen() {
+    if (document.fullscreenElement) return document.exitFullscreen();
+    var v = $('viewer');
+    if (v.requestFullscreen) v.requestFullscreen().catch(function () {});
+  }
+  $('fsBtn').addEventListener('click', toggleFullscreen);
+  document.addEventListener('fullscreenchange', function () {
+    var on = !!document.fullscreenElement;
+    $('fsBtn').setAttribute('aria-pressed', String(on));
+    $('fsBtn').textContent = on ? 'Exit fullscreen' : 'Fullscreen';
+  });
+
   window.addEventListener('keydown', function (e) {
     var tag = e.target && e.target.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'BUTTON' || tag === 'LI') return;
-    if (e.key === ' ') { e.preventDefault(); togglePlay(); }
+    if ((e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.metaKey && !e.altKey) toggleFullscreen();
+    else if (e.key === ' ') { e.preventDefault(); togglePlay(); }
     else if (e.key === 'ArrowRight') jump(S.idx + 1, true);
     else if (e.key === 'ArrowLeft') jump(S.idx - 1, true);
     else if (e.key === 'Home') jump(0, false);
