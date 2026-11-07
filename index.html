@@ -6,8 +6,8 @@
 <title>Flow animator</title>
 <link rel="icon" href="data:,">
 <style>
-:root{color-scheme:light dark;--bg:#fff;--text:#1f1e1d;--text2:#5f5e5a;--line:rgba(0,0,0,.14);--card:#f5f4ef;--edge:#8a8982;--hot:#EF9F27;--hot-d:#854F0B;--done:#BA7517;--bad:#A32D2D;--bad-bg:#FCEBEB;--warn:#633806;--warn-bg:#FAEEDA}
-@media (prefers-color-scheme:dark){:root{--bg:#1f1e1d;--text:#eeece6;--text2:#b4b2a9;--line:rgba(255,255,255,.18);--card:#2a2927;--edge:#888780;--bad:#F7C1C1;--bad-bg:#501313;--warn:#FAC775;--warn-bg:#412402}}
+:root{color-scheme:light dark;--bg:#fff;--text:#1f1e1d;--text2:#5f5e5a;--line:rgba(0,0,0,.14);--card:#f5f4ef;--edge:#8a8982;--sel:#2B7BD6;--hot:#EF9F27;--hot-d:#854F0B;--done:#BA7517;--bad:#A32D2D;--bad-bg:#FCEBEB;--warn:#633806;--warn-bg:#FAEEDA}
+@media (prefers-color-scheme:dark){:root{--sel:#6FB1F5;--bg:#1f1e1d;--text:#eeece6;--text2:#b4b2a9;--line:rgba(255,255,255,.18);--card:#2a2927;--edge:#888780;--bad:#F7C1C1;--bad-bg:#501313;--warn:#FAC775;--warn-bg:#412402}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif}
 #app{max-width:1120px;margin:0 auto;padding:20px 24px 40px}
@@ -35,6 +35,8 @@ button:focus-visible,input:focus-visible,li[tabindex]:focus-visible{outline:2px 
 .body{fill:var(--fill);stroke:var(--stroke);stroke-width:.75;transition:stroke .2s}
 .lip{fill:none;stroke:var(--stroke);stroke-width:.75}
 .node.hl .body{stroke:var(--hot);stroke-width:2.5}
+.node.sel .body{stroke:var(--sel);stroke-width:3.5}
+.edge.sel{stroke:var(--sel);stroke-width:3.5;opacity:1}
 .lbl{fill:var(--title);font-size:14px;font-weight:500}
 .sub{fill:var(--sub);font-size:12px}
 .pkt{fill:var(--hot);stroke:var(--hot-d);stroke-width:1}
@@ -83,6 +85,9 @@ body.editing #app{max-width:1560px}
 .esec summary .ecount{font-size:11px;font-weight:500;color:var(--text2);border:1px solid var(--line);border-radius:10px;padding:0 7px}
 .esec>.ebody{padding:0 10px 10px}
 .ebody{display:flex;flex-direction:column;width:100%}
+.eitem{border-top:1px solid var(--line)}
+.eitem>summary{cursor:pointer;padding:7px 0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.eitem>.erow{border-top:0;padding-top:2px}
 .erow{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:6px 8px;align-items:end;padding:8px 0;border-top:1px solid var(--line);width:100%}
 .erow>.ef{grid-column:span 4}
 .erow>button{grid-column:span 2;justify-self:stretch;height:28px;padding:0 6px}
@@ -421,6 +426,7 @@ body.editing #app{max-width:1560px}
       S.edgeEls[id].classList.toggle('done', !act[id] && !!done[id]);
     });
     Object.keys(S.nodeEls).forEach(function (id) { S.nodeEls[id].classList.toggle('hl', !!hl[id]); });
+    applySel();
     S.liEls.forEach(function (li, si) {
       var bi = beatOf(si);
       li.classList.toggle('active', bi === S.idx);
@@ -429,6 +435,13 @@ body.editing #app{max-width:1560px}
     $('scrub').value = String(S.idx);
     $('count').textContent = (S.idx + 1) + ' / ' + m.beats.length;
     $('play').textContent = S.playing ? 'Pause' : (S.finished ? 'Replay' : 'Play');
+  }
+
+  /* Editor selection: nodes/edges of expanded or focused editor items. */
+  function applySel() {
+    var sel = S.sel || { nodes: [], edges: [] };
+    Object.keys(S.nodeEls).forEach(function (id) { S.nodeEls[id].classList.toggle('sel', sel.nodes.indexOf(id) >= 0); });
+    Object.keys(S.edgeEls).forEach(function (id) { S.edgeEls[id].classList.toggle('sel', sel.edges.indexOf(id) >= 0); });
   }
 
   function caption() {
@@ -487,6 +500,7 @@ body.editing #app{max-width:1560px}
     getText: function () { return S.text || ''; },
     show: function (text, name) { loadText(text, name); },
     jumpToStep: function (i) { jump(beatOf(i), true); },
+    highlight: function (sel) { S.sel = sel; if (S.model) applySel(); },
     report: function (errors, warnings) { showIssues(errors, warnings, 'edit', true); },
     pause: function () { S.playing = false; },
     canSave: function () { return S.apiUp; },

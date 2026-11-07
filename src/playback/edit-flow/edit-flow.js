@@ -8,6 +8,8 @@
  *   host.jumpToStep(i)       move Playback to the Beat of step i
  *   host.report(errs, warns) show Violations
  *   host.pause()             stop the animation while editing
+ * Optional: host.highlight({nodes:[ids], edges:['from>to']}) marks Flow elements in the viewer for the
+ *   expanded or focused editor items (groups -> member nodes, nodes, steps -> edge and end nodes).
  * Optional (storage, slice save-flow): host.canSave() -> boolean, host.save(), host.saveAs(),
  *   host.canReload() -> boolean, host.reload(). When canSave() is true the panel shows Save buttons.
  *
@@ -23,6 +25,7 @@
   var SHAPES = ['box', 'database', 'queue'];
 
   var draft = null, undo = [], redo = [], dirty = false, lastEmitted = null, mount = null, active = false;
+  var openKeys = {}, focusKey = null, items = [];
 
   function h(tag, cls, text, parent) {
     var e = doc.createElement(tag);
@@ -131,6 +134,35 @@
     return h('div', 'ebody', null, s);
   }
 
+  /* A collapsible editor item (collapsed by default, one-line summary). Expanded or focused items
+     highlight their nodes/edges in the viewer. Returns the .erow body. */
+  function item(parent, key, summary, nodes, edges) {
+    var d = h('details', 'eitem', null, parent); d.open = !!openKeys[key];
+    h('summary', null, summary, d);
+    items.push({ key: key, nodes: nodes, edges: edges });
+    d.addEventListener('toggle', function () {
+      if (d.open) openKeys[key] = true; else delete openKeys[key];
+      applyHighlight();
+    });
+    d.addEventListener('focusin', function () { focusKey = key; applyHighlight(); });
+    d.addEventListener('focusout', function (ev) {
+      if (ev.relatedTarget && d.contains(ev.relatedTarget)) return;
+      if (focusKey === key) { focusKey = null; applyHighlight(); }
+    });
+    return h('div', 'erow', null, d);
+  }
+
+  function applyHighlight() {
+    if (!host.highlight) return;
+    var nodes = {}, edges = {};
+    if (active) items.forEach(function (it) {
+      if (!openKeys[it.key] && focusKey !== it.key) return;
+      it.nodes.forEach(function (n) { nodes[n] = true; });
+      it.edges.forEach(function (e) { edges[e] = true; });
+    });
+    host.highlight({ nodes: Object.keys(nodes), edges: Object.keys(edges) });
+  }
+
   function addBtn(body, label, fn) {
     var b = button(h('div', 'eadd', null, body), label, fn);
     b.className = 'eaddbtn';
@@ -160,7 +192,8 @@
     if (!mount) return;
     var keepScroll = mount.scrollTop;
     mount.textContent = '';
-    if (!active) { mount.hidden = true; return; }
+    items = [];
+    if (!active) { mount.hidden = true; applyHighlight(); return; }
     mount.hidden = false;
     if (!draft) sync();
     if (!draft) { h('p', null, 'No valid flow loaded to edit.', mount); return; }
@@ -187,7 +220,8 @@
 
     var gb = section('Groups', (draft.groups || []).length);
     (draft.groups || []).forEach(function (grp) {
-      var row = h('div', 'erow', null, gb);
+      var members = (draft.nodes || []).filter(function (n) { return n.group === grp.id; }).map(function (n) { return n.id; });
+      var row = item(gb, 'g:' + grp.id, grp.id + (grp.label && grp.label !== grp.id ? ' — ' + grp.label : ''), members, []);
       cols(h('code', 'eid', grp.id, row), 3);
       field(row, 'Label', grp.label, function (v) { edit('update_group', { id: grp.id, label: nullable(v) }); }, { span: 4 });
       select(row, 'Color', [''].concat(Core.COLORS), grp.color, function (v) { edit('update_group', { id: grp.id, color: nullable(v) }); }, 3);
@@ -201,7 +235,7 @@
     var nb = section('Nodes', (draft.nodes || []).length);
     var groupIds = [''].concat((draft.groups || []).map(function (x) { return x.id; }));
     (draft.nodes || []).forEach(function (node) {
-      var row = h('div', 'erow', null, nb);
+      var row = item(nb, 'n:' + node.id, node.id + (node.label && node.label !== node.id ? ' — ' + node.label : ''), [node.id], []);
       field(row, 'Id', node.id, function (v) { if (v !== node.id) edit('update_node', { id: node.id, new_id: v }); }, { span: 4 });
       field(row, 'Label', node.label, function (v) { edit('update_node', { id: node.id, label: v }); }, { max: 28, span: 4 });
       field(row, 'Subtitle', node.subtitle, function (v) { edit('update_node', { id: node.id, subtitle: nullable(v) }); }, { max: 36, span: 4 });
@@ -222,7 +256,7 @@
     var ids = (draft.nodes || []).map(function (x) { return x.id; });
     var steps = draft.steps || [];
     steps.forEach(function (s, i) {
-      var row = h('div', 'erow', null, sb);
+      var row = item(sb, 's:' + i, (i + 1) + '. ' + s.from + ' → ' + s.to + (s.label ? ' — ' + s.label : ''), [s.from, s.to], [s.from + '>' + s.to]);
       var num = button(row, String(i + 1), function () { host.jumpToStep(i); }, 'Show this step');
       num.className = 'enum'; cols(num, 1);
       select(row, 'From', ids, s.from, function (v) { edit('update_step', { index: i, from: v }); }, 5);
@@ -240,6 +274,7 @@
       edit('add_step', { from: ids[0], to: ids[ids.length > 1 ? 1 : 0], label: 'New step' });
     }).disabled = !ids.length;
     mount.scrollTop = keepScroll;
+    applyHighlight();
   }
 
   return {
