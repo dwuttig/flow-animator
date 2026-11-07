@@ -6,6 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Added
+- Proposed: MCP server for creating and editing flows (spec `docs/features/mcp-server.md`, plan `docs/plans/mcp-server.md`); implementation pending.
 - Claude Code subagents in `.claude/agents/`: software-engineer, architect, deployment, tester.
 - `CHANGELOG.md` to track changes.
 - `docs/features/` for feature specs and `docs/plans/` for implementation plans, each with a template.
