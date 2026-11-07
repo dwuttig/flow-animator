@@ -65,11 +65,11 @@ MCP stays as it is. Optionally `create_flow` and the edit Tools accept `expected
 - **Open file...**, drag and drop, paste: unchanged, and are *local* Flows with no server name.
 - **Download**: saves the current Flow as `<name>.flow.json`. Works with no server.
 
-### Editor mode (contract for the parallel thread)
-The editor holds a *working Flow* plus the *revision* it was loaded from, and talks to storage only through `FlowGateway` (below).
-- **Save** (Ctrl+S): `PUT` with `If-Match`. On success it stores the new revision. On `422` it shows Violations at their paths and keeps the working Flow. On `412` it offers: *Reload theirs* (discard local), *Overwrite* (retry without `If-Match`), or *Save as new name*.
+### Editor mode (contract for the `edit-flow` slice)
+The editor holds a *Draft* plus the *revision* it was loaded from, and talks to storage only through `FlowGateway` (below).
+- **Save** (Ctrl+S): `PUT` with `If-Match`. On success it stores the new revision. On `422` it shows Violations at their paths and keeps the Draft. On `412` it offers: *Reload theirs* (discard local), *Overwrite* (retry without `If-Match`), or *Save as new name*.
 - **Save as...**: asks for a name, `PUT` with `If-None-Match: *`.
-- **New flow**: working Flow with no name until the first Save as.
+- **New flow**: Draft with no name until the first Save as.
 - **Dirty marker** and a leave-page warning while unsaved.
 - **Delete** only after confirmation.
 - **Token**: on `401` the UI asks for the token once and keeps it in `sessionStorage` only (never in the URL or the file).
@@ -103,7 +103,7 @@ Add to `docs/ubiquitous-language.md`, Flow Library section:
 | **Revision** | Content hash of a stored Flow, used to detect that it changed since it was loaded. |
 | **Conflict** | A save that carried an older Revision than the stored one; rejected, nothing written. |
 | **Flow API** | The HTTP interface of the Flow Library (`/api/flows`). |
-| **Working Flow** | Playback term: the in-memory Flow being viewed or edited, possibly unsaved. |
+| **Draft** | Playback term (defined by the editor mode): the in-memory Flow being edited, possibly unsaved. Reused here; not redefined. |
 
 ## File-format impact
 None. `flow-animator/1` is unchanged; Revision and Flow name live outside the file.
