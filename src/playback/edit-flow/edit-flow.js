@@ -8,7 +8,7 @@
  *   host.jumpToStep(i)       move Playback to the Beat of step i
  *   host.report(errs, warns) show Violations
  *   host.pause()             stop the animation while editing
- * Optional: host.highlight({nodes:[ids], edges:['from>to']}) marks Flow elements in the viewer for the
+ * Optional: host.highlight({nodes:[ids], edges:['from>to'], glow:{nodes,edges}}) marks Flow elements in the viewer for the
  *   expanded or focused editor items (groups -> member nodes, nodes, steps -> edge and end nodes).
  * Optional (storage, slice save-flow): host.canSave() -> boolean, host.save(), host.saveAs(),
  *   host.canReload() -> boolean, host.reload(). When canSave() is true the panel shows Save buttons.
@@ -25,7 +25,7 @@
   var SHAPES = ['box', 'database', 'queue'];
 
   var draft = null, undo = [], redo = [], dirty = false, lastEmitted = null, mount = null, active = false;
-  var openKeys = {}, focusKey = null, items = [];
+  var openKeys = {}, focusKey = null, hoverKey = null, items = [];
 
   function h(tag, cls, text, parent) {
     var e = doc.createElement(tag);
@@ -144,6 +144,8 @@
       if (d.open) openKeys[key] = true; else delete openKeys[key];
       applyHighlight();
     });
+    d.addEventListener('mouseenter', function () { hoverKey = key; applyHighlight(); });
+    d.addEventListener('mouseleave', function () { if (hoverKey === key) { hoverKey = null; applyHighlight(); } });
     d.addEventListener('focusin', function () { focusKey = key; applyHighlight(); });
     d.addEventListener('focusout', function (ev) {
       if (ev.relatedTarget && d.contains(ev.relatedTarget)) return;
@@ -154,13 +156,14 @@
 
   function applyHighlight() {
     if (!host.highlight) return;
-    var nodes = {}, edges = {};
+    var nodes = {}, edges = {}, glow = { nodes: [], edges: [] };
     if (active) items.forEach(function (it) {
+      if (it.key === hoverKey) glow = { nodes: it.nodes, edges: it.edges };
       if (!openKeys[it.key] && focusKey !== it.key) return;
       it.nodes.forEach(function (n) { nodes[n] = true; });
       it.edges.forEach(function (e) { edges[e] = true; });
     });
-    host.highlight({ nodes: Object.keys(nodes), edges: Object.keys(edges) });
+    host.highlight({ nodes: Object.keys(nodes), edges: Object.keys(edges), glow: glow });
   }
 
   function addBtn(body, label, fn) {
@@ -192,7 +195,7 @@
     if (!mount) return;
     var keepScroll = mount.scrollTop;
     mount.textContent = '';
-    items = [];
+    items = []; hoverKey = null;
     if (!active) { mount.hidden = true; applyHighlight(); return; }
     mount.hidden = false;
     if (!draft) sync();
