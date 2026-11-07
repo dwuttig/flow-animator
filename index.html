@@ -90,6 +90,15 @@ body.editing #app{max-width:1560px}
 .eitem>.erow{border-top:0;padding:2px 10px 10px}
 .eitem>summary:hover{background:var(--card)}
 .eitem[open]>summary{font-weight:600}
+summary{list-style:none}
+summary::-webkit-details-marker{display:none}
+.esec>summary::after,.eitem>summary::after{content:"";width:7px;height:7px;border-right:2px solid var(--text2);border-bottom:2px solid var(--text2);transform:rotate(45deg);flex:none;transition:transform .15s}
+.esec>summary::after{margin-left:auto;margin-bottom:3px}
+.eitem>summary{position:relative;padding-right:30px}
+.eitem>summary::after{position:absolute;right:12px;top:calc(50% - 6px)}
+.esec[open]>summary::after,.eitem[open]>summary::after{transform:rotate(-135deg)}
+.esec[open]>summary::after{margin-bottom:-3px}
+.eitem[open]>summary::after{top:calc(50% - 2px)}
 .erow{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:6px 8px;align-items:end;padding:8px 0;border-top:1px solid var(--line);width:100%}
 .erow>.ef{grid-column:span 4}
 .erow>button{grid-column:span 2;justify-self:stretch;height:28px;padding:0 6px}
