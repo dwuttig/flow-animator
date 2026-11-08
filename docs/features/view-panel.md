@@ -8,7 +8,7 @@
 One floating panel over the top right of the diagram replaces the controls row, the rendering-options row and the top-right bar.
 
 - Playback: Restart, Prev, Play/Pause, Next, scrubber with step count, Speed, Loop, Trail.
-- Display: Orientation, Connections, Step style, Thickness.
+- Display: Orientation, Connections, Step style, Thickness, Labels (show step labels on connections).
 - Zoom: +, −, Reset (zoom and position), Maximize, Fullscreen.
 - Hide/Show collapses the panel to its title bar. The choice is stored in `localStorage` (`flow-animator.viewpanel`).
 

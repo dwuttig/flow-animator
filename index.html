@@ -67,6 +67,11 @@ button:focus-visible,input:focus-visible,li[tabindex]:focus-visible{outline:2px 
 .edge.sel{stroke:var(--sel);stroke-width:3.5;opacity:1}
 .lbl{fill:var(--title);font-size:14px;font-weight:500}
 .sub{fill:var(--sub);font-size:12px}
+.slbl text{fill:var(--text2);font-size:11px;font-weight:400;paint-order:stroke;stroke:var(--bg);stroke-width:4px;stroke-linejoin:round;text-anchor:middle;dominant-baseline:central}
+.slbl rect{fill:var(--hot);fill-opacity:.28;stroke:var(--hot);stroke-width:1;display:none}
+.slbl.active text{fill:var(--text);font-weight:600;font-size:12px}
+.slbl.active rect{display:inline}
+#svg.nolabels .slbl{display:none}
 .pkt{fill:var(--hot);stroke:var(--hot-d);stroke-width:1}
 .pkt.resp{fill:var(--bg)}
 #legend{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;font-size:12px;color:var(--text2);min-height:8px}
@@ -219,6 +224,7 @@ summary::-webkit-details-marker{display:none}
             <label>Speed <input id="spd" type="range" min="0.5" max="3" step="0.5" value="1"> <span id="spdl">1x</span></label>
             <label><input id="loop" type="checkbox" checked> Loop</label>
             <label><input id="trail" type="checkbox" checked> Trail</label>
+            <label><input id="optLabels" type="checkbox" checked> Labels</label>
           </div>
           <div class="vprow vpgrid">
             <label>Orientation <select id="optDir"><option value="LR">Horizontal</option><option value="TB">Vertical</option></select></label>
@@ -439,7 +445,7 @@ summary::-webkit-details-marker{display:none}
     el('path', { d: 'M1 1L9 5L1 9z', fill: 'context-stroke', stroke: 'context-stroke', 'stroke-width': 1, 'stroke-linejoin': 'round', 'stroke-dasharray': 'none' }, mk);
 
     var vp = el('g', { id: 'vp' }, svg);
-    var gE = el('g', {}, vp), gN = el('g', {}, vp), gP = el('g', {}, vp);
+    var gE = el('g', {}, vp), gN = el('g', {}, vp), gL = el('g', {}, vp), gP = el('g', {}, vp);
     S.view = { k: 1, x: 0, y: 0 }; S.vp = vp;
     initPanZoom(svg);
     S.edgeEls = {}; S.nodeEls = {}; S.lens = {}; S.packets = [];
@@ -456,6 +462,7 @@ summary::-webkit-details-marker{display:none}
     });
     model.nodes.forEach(function (n) { S.nodeEls[n.id] = drawNode(gN, n, geo.nodes[n.id]); });
     S.gP = gP;
+    placeLabels(model, geo, gL);
 
     // legend
     var lg = $('legend'); lg.textContent = '';
@@ -496,6 +503,46 @@ summary::-webkit-details-marker{display:none}
     $('title').textContent = model.title;
     $('desc').textContent = model.description;
     document.title = model.title + ' · Flow animator';
+  }
+
+  /* Step labels: one per step, beside its connection line, placed greedily so they avoid nodes and each other. */
+  function placeLabels(model, geo, g) {
+    S.lblEls = [];
+    var placed = [], tries = [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8];
+    Object.keys(geo.nodes).forEach(function (id) {
+      var r = geo.nodes[id]; placed.push({ x0: r.x - 2, y0: r.y - 2, x1: r.x + r.w + 2, y1: r.y + r.h + 2 });
+    });
+    function hit(b) { return placed.some(function (q) { return b.x0 < q.x1 && b.x1 > q.x0 && b.y0 < q.y1 && b.y1 > q.y0; }); }
+    model.steps.forEach(function (s, si) {
+      var path = S.edgeEls[s.from + '>' + s.to], len = S.lens[s.from + '>' + s.to];
+      var txt = s.label.length > 26 ? s.label.slice(0, 25) + '…' : s.label;
+      var grp = el('g', { 'class': 'slbl' }, g);
+      var bg = el('rect', { rx: 4, ry: 4 }, grp), t = el('text', {}, grp);
+      t.textContent = txt;
+      el('title', {}, grp).textContent = s.label;
+      S.lblEls[si] = grp;
+      if (!path || !len) { grp.style.display = 'none'; return; }
+      var w = txt.length * 6.6, hgt = 14;
+      try { var bb = t.getBBox(); if (bb.width > 0) { w = bb.width; hgt = bb.height; } } catch (e) {}
+      w += 8; hgt += 2;
+      var best = null;
+      for (var ti = 0; ti < tries.length && !best; ti++) {
+        var f = tries[ti], pt = path.getPointAtLength(len * f), a = path.getPointAtLength(Math.max(0, len * f - 3)), b = path.getPointAtLength(Math.min(len, len * f + 3));
+        var dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1, nx = -dy / d, ny = dx / d;
+        var ext = Math.abs(nx) * w / 2 + Math.abs(ny) * hgt / 2 + 3;
+        [[1, ext], [-1, ext], [0, 0]].forEach(function (c) {
+          if (best) return;
+          var cx = Math.min(geo.width - w / 2 - 2, Math.max(w / 2 + 2, pt.x + nx * c[0] * c[1])), cy = Math.min(geo.height - hgt / 2 - 2, Math.max(hgt / 2 + 2, pt.y + ny * c[0] * c[1]));
+          var box = { x0: cx - w / 2, y0: cy - hgt / 2, x1: cx + w / 2, y1: cy + hgt / 2, cx: cx, cy: cy };
+          if (!hit(box)) best = box;
+        });
+      }
+      if (!best) { var m = path.getPointAtLength(len / 2); best = { x0: m.x - w / 2, y0: m.y - hgt / 2 - 8, x1: m.x + w / 2, y1: m.y + hgt / 2 - 8, cx: m.x, cy: m.y - 8 }; }
+      placed.push(best);
+      t.setAttribute('x', best.cx.toFixed(1)); t.setAttribute('y', best.cy.toFixed(1));
+      bg.setAttribute('x', (best.cx - w / 2).toFixed(1)); bg.setAttribute('y', (best.cy - hgt / 2).toFixed(1));
+      bg.setAttribute('width', w.toFixed(1)); bg.setAttribute('height', hgt.toFixed(1));
+    });
   }
 
   function nodeLabel(model, id) {
@@ -569,6 +616,8 @@ summary::-webkit-details-marker{display:none}
       S.edgeEls[id].classList.toggle('done', !act[id] && !!done[id]);
     });
     Object.keys(S.nodeEls).forEach(function (id) { S.nodeEls[id].classList.toggle('hl', !!hl[id]); });
+    var inBeat = {}; beat.forEach(function (si) { inBeat[si] = true; });
+    S.lblEls.forEach(function (g, si) { g.classList.toggle('active', !!inBeat[si]); });
     applySel();
     followBeat(beat);
     S.liEls.forEach(function (li, si) {
@@ -938,10 +987,11 @@ summary::-webkit-details-marker{display:none}
     if (C.CONNECTIONS.indexOf(saved.connection) >= 0) V.connection = saved.connection;
     if (['kind', 'solid', 'dashed', 'dotted'].indexOf(saved.step) >= 0) V.step = saved.step;
     if (saved.thick >= 1 && saved.thick <= 6) V.thick = +saved.thick;
+    if (saved.labels === false) V.labels = false;
   } catch (e) {}
 
   function saveView() {
-    try { localStorage.setItem('flow-animator.view', JSON.stringify({ connection: V.connection, step: V.step, thick: V.thick })); } catch (e) {}
+    try { localStorage.setItem('flow-animator.view', JSON.stringify({ connection: V.connection, step: V.step, thick: V.thick, labels: V.labels })); } catch (e) {}
   }
   function layoutOpts(model) {
     return { direction: V.direction || model.direction, connection: V.connection || model.connection };
@@ -949,12 +999,13 @@ summary::-webkit-details-marker{display:none}
   function syncOpts(model) {
     var o = layoutOpts(model);
     $('optDir').value = o.direction; $('optConn').value = o.connection;
-    $('optStep').value = V.step; $('optThick').value = String(V.thick); $('optThickL').textContent = String(V.thick);
+    $('optLabels').checked = V.labels !== false; $('optStep').value = V.step; $('optThick').value = String(V.thick); $('optThickL').textContent = String(V.thick);
     applyLook();
   }
   function applyLook() {
     var svg = $('svg');
     svg.style.setProperty('--ew', String(V.thick));
+    svg.classList.toggle('nolabels', V.labels === false);
     svg.classList.remove('ss-solid', 'ss-dashed', 'ss-dotted');
     if (V.step !== 'kind') svg.classList.add('ss-' + V.step);
   }
@@ -969,6 +1020,7 @@ summary::-webkit-details-marker{display:none}
   }
   $('optDir').addEventListener('change', function () { V.direction = this.value; relayout(); });
   $('optConn').addEventListener('change', function () { V.connection = this.value; saveView(); relayout(); });
+  $('optLabels').addEventListener('change', function () { V.labels = this.checked; saveView(); applyLook(); });
   $('optStep').addEventListener('change', function () { V.step = this.value; saveView(); applyLook(); });
   $('optThick').addEventListener('input', function () {
     V.thick = +this.value; $('optThickL').textContent = String(V.thick); saveView(); applyLook();
