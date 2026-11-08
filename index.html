@@ -268,6 +268,7 @@ summary::-webkit-details-marker{display:none}
 <script src="src/playback/save-flow/save-flow.js"></script>
 <script src="src/playback/mcp-config/mcp-config.js"></script>
 <script src="src/playback/export-flow/export-flow.js"></script>
+<script src="src/playback/record-video/record-video.js"></script>
 <script src="src/playback/flow-menu/flow-menu.js"></script>
 <script id="sample-flow" type="application/json">{
   "$schema": "../flow.schema.json",
@@ -713,6 +714,54 @@ summary::-webkit-details-marker{display:none}
       else notify('Not deleted: ' + (r.message || r.kind));
     });
   }
+  /* Record the animation once, from the first step, as a video file (slice record-video). */
+  var recording = null;
+  function recordVideo() {
+    if (!S.model || recording) return;
+    var saved = null, svg = $('svg'), RV = window.RecordVideo;
+    var host = {
+      svg: function () { return svg; },
+      css: function () {
+        var out = '';
+        Array.prototype.forEach.call(document.styleSheets, function (sh) {
+          try { Array.prototype.forEach.call(sh.cssRules, function (r) { out += r.cssText + '\n'; }); } catch (e) {}
+        });
+        return out;
+      },
+      colors: function () {
+        var cs = getComputedStyle(document.documentElement), g = function (v) { return cs.getPropertyValue(v).trim(); };
+        return { bg: g('--bg'), text: g('--text'), text2: g('--text2'), card: g('--card') };
+      },
+      caption: function () {
+        return S.model.beats[S.idx].map(function (si) {
+          var s = S.model.steps[si];
+          return { head: (si + 1) + '. ' + s.label + '   ' + nodeLabel(S.model, s.from) + ' → ' + nodeLabel(S.model, s.to), detail: s.detail || '' };
+        });
+      },
+      prepare: function () {
+        saved = { loop: $('loop').checked, playing: S.playing, idx: S.idx, finished: S.finished };
+        $('loop').checked = false; S.finished = false; begin(0); S.playing = true; paint();
+      },
+      done: function () { return S.finished && !S.playing; },
+      progress: function () { return 'Recording video… step ' + (S.idx + 1) + ' of ' + S.model.beats.length + ' (Esc cancels)'; },
+      restore: function () {
+        $('loop').checked = saved.loop;
+        jump(saved.idx, true); S.playing = saved.playing && !saved.finished; S.finished = saved.finished; paint();
+      }
+    };
+    notify('Recording video… keep this tab in front until it finishes (Esc cancels).');
+    recording = RV.record(window, host, { onProgress: function (t) { clearTimeout(noteTimer); $('note').textContent = t; } });
+    var title = S.model.title;
+    recording.done.then(function (r) {
+      var name = RV.fileName(title, r.ext);
+      window.ExportFlow.download(document, name, r.blob.type, r.blob);
+      notify('Video saved as ' + name + (r.ext === 'webm' ? ' (WebM: PowerPoint may not play it; use Edge or Chrome for MP4)' : '') + '. In PowerPoint: Insert > Video > This Device.');
+    }).catch(function (e) {
+      notify(e && e.message === 'cancelled' ? 'Recording cancelled.' : 'Could not record the video: ' + (e && e.message ? e.message : e));
+    }).then(function () { recording = null; });
+  }
+  window.addEventListener('keydown', function (e) { if (e.key === 'Escape' && recording) recording.cancel(); });
+
   var picker = window.FlowMenu.create(document, gateway, {
     openStored: function (name) { if (discardOk()) openStored(name); },
     openFile: function () { if (discardOk()) $('file').click(); },
@@ -742,6 +791,8 @@ summary::-webkit-details-marker{display:none}
         notify('Could not build the standalone HTML: ' + (e && e.message ? e.message : e) + (location.protocol === 'file:' ? ' (serve the viewer over http, or use build-standalone.js)' : ''));
       });
     },
+    canRecordVideo: function () { return !!window.RecordVideo.supported(window); },
+    exportVideo: recordVideo,
     mcp: function () { mcpDialog.open(); }
   });
 

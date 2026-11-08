@@ -32,6 +32,7 @@ COPY src/playback/flow-gateway/flow-gateway.js ./src/playback/flow-gateway/
 COPY src/playback/save-flow/save-flow.js ./src/playback/save-flow/
 COPY src/playback/mcp-config/mcp-config.js ./src/playback/mcp-config/
 COPY src/playback/export-flow/export-flow.js ./src/playback/export-flow/
+COPY src/playback/record-video/record-video.js ./src/playback/record-video/
 COPY src/playback/flow-menu/flow-menu.js ./src/playback/flow-menu/
 COPY examples/ ./examples/
 

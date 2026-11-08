@@ -7,7 +7,7 @@
  *   menu.mount(parent); menu.refresh(); menu.select(name|null); menu.setApi(bool);
  *
  * actions: openStored(name) openFile() paste() sample() newFlow() share() remove()
- *          exportJson() exportHtml() mcp()
+ *          exportJson() exportHtml() exportVideo() canRecordVideo() mcp()
  * Top level: Open flow..., New flow, Delete flow, Share flow, Export flow..., MCP config.
  * "Share" and "Delete" need a stored Flow (and the Flow API); the entries are
  * disabled otherwise. The stored list is hidden when no list is available.
@@ -18,6 +18,7 @@
 })(typeof self !== 'undefined' ? self : this, function create(doc, gw, actions) {
   'use strict';
   var btn, pop, flows = [], current = null, apiUp = false, openIdx = -1, view = 'top';
+  var canVideo = !!(actions.canRecordVideo && actions.canRecordVideo());
 
   function label(f) {
     var s = f.title ? f.title + ' (' + f.file + ')' : f.file;
@@ -63,6 +64,7 @@
       pop.appendChild(sep());
       pop.appendChild(item('Download JSON', actions.exportJson));
       pop.appendChild(item('Download standalone HTML', actions.exportHtml));
+      pop.appendChild(item('Record video for PowerPoint', actions.exportVideo, { disabled: !canVideo, hint: 'This browser cannot record video' }));
     } else {
       pop.appendChild(item('Open flow…', function () {}, { sub: 'open' }));
       pop.appendChild(item('New flow', actions.newFlow));

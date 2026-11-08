@@ -12,7 +12,7 @@
   else root.ExportFlow = m;
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
-  var SCRIPTS = ['flow-core.js', 'src/flow-library/apply-edit/apply-edit.js', 'src/playback/edit-flow/edit-flow.js', 'src/playback/flow-gateway/flow-gateway.js', 'src/playback/save-flow/save-flow.js', 'src/playback/mcp-config/mcp-config.js', 'src/playback/export-flow/export-flow.js', 'src/playback/flow-menu/flow-menu.js'];
+  var SCRIPTS = ['flow-core.js', 'src/flow-library/apply-edit/apply-edit.js', 'src/playback/edit-flow/edit-flow.js', 'src/playback/flow-gateway/flow-gateway.js', 'src/playback/save-flow/save-flow.js', 'src/playback/mcp-config/mcp-config.js', 'src/playback/export-flow/export-flow.js', 'src/playback/record-video/record-video.js', 'src/playback/flow-menu/flow-menu.js'];
 
   function safe(s) { return s.replace(/<\//g, '<\\/'); }
 
