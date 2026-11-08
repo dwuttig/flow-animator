@@ -68,9 +68,7 @@ button:focus-visible,input:focus-visible,li[tabindex]:focus-visible{outline:2px 
 .lbl{fill:var(--title);font-size:14px;font-weight:500}
 .sub{fill:var(--sub);font-size:12px}
 .slbl text{fill:var(--text2);font-size:11px;font-weight:400;paint-order:stroke;stroke:var(--bg);stroke-width:4px;stroke-linejoin:round;text-anchor:middle;dominant-baseline:central}
-.slbl rect{fill:var(--hot);fill-opacity:.28;stroke:var(--hot);stroke-width:1;display:none}
 .slbl.active text{fill:var(--text);font-weight:600;font-size:12px}
-.slbl.active rect{display:inline}
 #svg.nolabels .slbl{display:none}
 .pkt{fill:var(--hot);stroke:var(--hot-d);stroke-width:1}
 .pkt.resp{fill:var(--bg)}
@@ -517,7 +515,7 @@ summary::-webkit-details-marker{display:none}
       var path = S.edgeEls[s.from + '>' + s.to], len = S.lens[s.from + '>' + s.to];
       var txt = s.label.length > 26 ? s.label.slice(0, 25) + '…' : s.label;
       var grp = el('g', { 'class': 'slbl' }, g);
-      var bg = el('rect', { rx: 4, ry: 4 }, grp), t = el('text', {}, grp);
+      var t = el('text', {}, grp);
       t.textContent = txt;
       el('title', {}, grp).textContent = s.label;
       S.lblEls[si] = grp;
@@ -540,8 +538,6 @@ summary::-webkit-details-marker{display:none}
       if (!best) { var m = path.getPointAtLength(len / 2); best = { x0: m.x - w / 2, y0: m.y - hgt / 2 - 8, x1: m.x + w / 2, y1: m.y + hgt / 2 - 8, cx: m.x, cy: m.y - 8 }; }
       placed.push(best);
       t.setAttribute('x', best.cx.toFixed(1)); t.setAttribute('y', best.cy.toFixed(1));
-      bg.setAttribute('x', (best.cx - w / 2).toFixed(1)); bg.setAttribute('y', (best.cy - hgt / 2).toFixed(1));
-      bg.setAttribute('width', w.toFixed(1)); bg.setAttribute('height', hgt.toFixed(1));
     });
   }
 

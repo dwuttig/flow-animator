@@ -5,7 +5,7 @@
 - Slice: viewer (`index.html`)
 
 ## What
-Every Step's label is drawn beside its connection line in the diagram, always visible. The Step(s) of the current Beat have a highlighted label (bold, larger, accent outline). The **Labels** checkbox in the View panel hides or shows them; the choice is stored in `localStorage` (`flow-animator.view`).
+Every Step's label is drawn beside its connection line in the diagram, always visible. The Step(s) of the current Beat have a highlighted label (bold, larger, full-contrast text; no background box). The **Labels** checkbox in the View panel hides or shows them; the choice is stored in `localStorage` (`flow-animator.view`).
 
 ## Why
 Readers had to look at the caption below the diagram to know what each arrow means. Labels on the arrows make the diagram readable on its own, also in a paused or exported view.
