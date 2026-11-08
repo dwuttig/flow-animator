@@ -6,7 +6,7 @@
 <title>Flow animator</title>
 <link rel="icon" href="data:,">
 <style>
-:root{color-scheme:light dark;--bg:#fff;--text:#1f1e1d;--text2:#5f5e5a;--line:rgba(0,0,0,.14);--card:#f5f4ef;--edge:#8a8982;--sel:#2B7BD6;--hot:#EF9F27;--hot-d:#854F0B;--done:#BA7517;--bad:#A32D2D;--bad-bg:#FCEBEB;--warn:#633806;--warn-bg:#FAEEDA}
+:root{color-scheme:light dark;--sp-1:4px;--sp-2:8px;--sp-3:12px;--sp-4:16px;--sp-5:24px;--r-ctl:8px;--r-box:12px;--ctl-h:30px;--fs-sm:12px;--fs:13px;--bg:#fff;--text:#1f1e1d;--text2:#5f5e5a;--line:rgba(0,0,0,.14);--card:#f5f4ef;--edge:#8a8982;--sel:#2B7BD6;--hot:#EF9F27;--hot-d:#854F0B;--done:#BA7517;--bad:#A32D2D;--bad-bg:#FCEBEB;--warn:#633806;--warn-bg:#FAEEDA}
 @media (prefers-color-scheme:dark){:root{--sel:#6FB1F5;--bg:#1f1e1d;--text:#eeece6;--text2:#b4b2a9;--line:rgba(255,255,255,.18);--card:#2a2927;--edge:#888780;--bad:#F7C1C1;--bad-bg:#501313;--warn:#FAC775;--warn-bg:#412402}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif}
@@ -15,7 +15,11 @@ header{display:flex;gap:16px;justify-content:space-between;align-items:flex-star
 h1{font-size:22px;font-weight:500;margin:0}
 #desc{margin:4px 0 0;color:var(--text2);max-width:70ch}
 #src{margin:4px 0 0;font-size:12px;color:var(--text2)}
-button{font:inherit;font-size:13px;color:var(--text);background:transparent;border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer}
+button,select,input[type=text]{font:inherit;font-size:var(--fs);color:var(--text);height:var(--ctl-h);border:1px solid var(--line);border-radius:var(--r-ctl);padding:0 var(--sp-3)}
+button{background:transparent;cursor:pointer;white-space:nowrap}
+select,input[type=text]{background:var(--card);padding:0 var(--sp-2)}
+input[type=range]{accent-color:var(--hot);margin:0;height:var(--ctl-h)}
+input[type=checkbox]{margin:0}
 button:hover{background:var(--card)}
 button:focus-visible,input:focus-visible,li[tabindex]:focus-visible{outline:2px solid var(--hot);outline-offset:2px}
 .tools{display:flex;gap:8px;flex-wrap:wrap}
@@ -31,28 +35,35 @@ button:focus-visible,input:focus-visible,li[tabindex]:focus-visible{outline:2px 
 #svg.ss-solid .edge{stroke-dasharray:none}
 #svg.ss-dashed .edge{stroke-dasharray:6 4}
 #svg.ss-dotted .edge{stroke-dasharray:2 4;stroke-linecap:round}
-#stagewrap{position:relative;margin:20px 0 4px}
-#stagewrap #stage{margin:0}
-#vizbar{position:absolute;top:8px;right:8px;z-index:3;width:max-content;max-width:min(340px,calc(100% - 16px));padding:6px 8px;border-radius:10px;font-size:13px;color:var(--text2);background:color-mix(in srgb,var(--bg) 88%,transparent);border:1px solid var(--line);backdrop-filter:blur(4px)}
-#vphead{display:flex;justify-content:space-between;align-items:center;gap:10px}
-#vpbody{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+#stagewrap{display:flex;gap:var(--sp-4);align-items:flex-start;margin:20px 0 4px}
+#stagewrap #stage{margin:0;flex:1 1 0;min-width:0}
+#vizbar{flex:none;width:272px;padding:var(--sp-3);border:1px solid var(--line);border-radius:var(--r-box);background:var(--card);font-size:var(--fs);color:var(--text2)}
+#vphead{display:flex;justify-content:space-between;align-items:center;gap:var(--sp-3);font-weight:600;color:var(--text)}
+#vphead button{height:26px;padding:0 var(--sp-2);font-size:var(--fs-sm);font-weight:400}
+#vpbody{display:flex;flex-direction:column;gap:var(--sp-3);margin-top:var(--sp-3)}
+#vizbar.collapsed{width:auto;padding:var(--sp-2) var(--sp-3)}
 #vizbar.collapsed #vpbody{display:none}
-#vizbar.collapsed #vphead{margin:0}
-.vprow{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.vprow>input[type=range]{flex:1 1 120px;min-width:80px}
-.vpgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px 10px}
-#vizbar input[type=range]{min-width:0;width:100%}
-#vizbar .vprow label input[type=range]{width:90px}
-@media (max-width:600px){#vizbar{position:static;width:auto;max-width:none;margin-bottom:8px}.vpgrid{grid-template-columns:minmax(0,1fr)}}
-#vizbar label{display:inline-flex;align-items:center;gap:6px;line-height:1.2}
-#vizbar .vpgrid label{justify-content:space-between}
-#vizbar input{margin:0}
-#vizbar input[type=range]{accent-color:var(--hot)}
-#vizbar #count{min-width:3.5em;text-align:center;white-space:nowrap}
-#vizbar select{font:inherit;font-size:13px;color:var(--text);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:3px 6px;max-width:110px}
-#vizbar button{padding:4px 8px}
+.vpsec{display:flex;flex-direction:column;gap:var(--sp-2);padding-top:var(--sp-3);border-top:1px solid var(--line)}
+.vpsec>h3{margin:0;font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:var(--text2)}
+.vpbtns{display:grid;grid-template-columns:repeat(var(--cols,4),minmax(0,1fr));gap:var(--sp-2)}
+.vpbtns button{padding:0 var(--sp-1)}
+.vpline{display:flex;align-items:center;gap:var(--sp-2)}
+.vpline>input[type=range]{flex:1 1 0;min-width:0}
+.vpline output{min-width:3.5em;text-align:right;white-space:nowrap}
+.vpfield{display:grid;grid-template-columns:88px minmax(0,1fr) auto;align-items:center;gap:var(--sp-2)}
+.vpfield select{grid-column:2/4;width:100%}
+.vpfield input[type=range]{width:100%}
+.vpfield output{min-width:2.5em;text-align:right}
+.vpchecks{display:flex;gap:var(--sp-4)}
+.vpchecks label{display:inline-flex;align-items:center;gap:var(--sp-2)}
+@media (max-width:760px){#stagewrap{flex-direction:column}#vizbar{width:100%}}
+@media (max-width:1399px){body.editing #stagewrap{flex-direction:column}body.editing #vizbar{width:100%}}
+@media (max-width:760px),(max-width:1399px){
+  body.editing #vpbody,#vpbody{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:var(--sp-4)}
+}
 #viewer:fullscreen #stagewrap,#viewer.maxed #stagewrap{flex:1 1 auto;min-height:0;display:flex;margin:0}
-#viewer:fullscreen #stagewrap #stage,#viewer.maxed #stagewrap #stage{flex:1 1 auto;width:100%}
+#viewer:fullscreen #stagewrap #stage,#viewer.maxed #stagewrap #stage{flex:1 1 0;align-self:stretch}
+#viewer:fullscreen #vizbar,#viewer.maxed #vizbar{align-self:stretch;overflow-y:auto}
 .k-response{stroke-dasharray:6 4}
 .k-async,.k-event{stroke-dasharray:2 4;stroke-linecap:round}
 .edge.done{stroke:var(--done);opacity:.75}
@@ -75,14 +86,12 @@ button:focus-visible,input:focus-visible,li[tabindex]:focus-visible{outline:2px 
 #legend{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;font-size:12px;color:var(--text2);min-height:8px}
 #legend .chip{display:inline-flex;align-items:center;gap:6px}
 #legend i{width:12px;height:12px;border-radius:3px;background:var(--fill);border:1px solid var(--stroke)}
-#cap{margin:12px 0 0;width:100%;background:var(--card);border-radius:12px;padding:12px 16px;height:160px;overflow-y:auto}
+#cap{margin:12px 0 0;width:100%;background:var(--card);border-radius:var(--r-box);padding:12px 16px;height:160px;overflow-y:auto}
 #cap .line+.line{margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
 #cap .t{font-weight:500}
 #cap .route{color:var(--text2);font-size:13px;margin-left:6px}
 #cap .d{color:var(--text2);margin-top:2px}
 #cap code{display:inline-block;margin-top:4px;font:12px ui-monospace,Menlo,Consolas,monospace;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:1px 8px}
-#scrub{flex:1 1 200px;min-width:120px}
-#spd{width:90px}
 #steps{list-style:none;counter-reset:s;margin:14px 0 0;padding:0;width:100%}
 #steps li{counter-increment:s;display:flex;gap:10px;padding:5px 10px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--text2);border-left:3px solid transparent}
 #steps li::before{content:counter(s);min-width:18px;text-align:right;color:var(--text2)}
@@ -92,7 +101,7 @@ button:focus-visible,input:focus-visible,li[tabindex]:focus-visible{outline:2px 
 #steps li.active{background:var(--card);color:var(--text);border-left-color:var(--hot);font-weight:500}
 #drop{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45);color:#fff;font-size:20px;z-index:10}
 #drop[hidden]{display:none}
-dialog{width:min(640px,92vw);border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--text);padding:16px}
+dialog{width:min(640px,92vw);border:1px solid var(--line);border-radius:var(--r-box);background:var(--bg);color:var(--text);padding:16px}
 dialog::backdrop{background:rgba(0,0,0,.4)}
 dialog textarea{width:100%;height:260px;font:12px ui-monospace,Menlo,Consolas,monospace;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px}
 dialog .row{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
@@ -136,10 +145,10 @@ summary::-webkit-details-marker{display:none}
 .eitem[open]>summary::after{top:calc(50% - 2px)}
 .erow{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:6px 8px;align-items:end;padding:8px 0;border-top:1px solid var(--line);width:100%}
 .erow>.ef{grid-column:span 4}
-.erow>button{grid-column:span 2;justify-self:stretch;height:28px;padding:0 6px}
+.erow>button{grid-column:span 2;justify-self:stretch;padding:0 6px}
 .erow>.eid{grid-column:span 4;align-self:center;overflow:hidden;text-overflow:ellipsis;font:12px ui-monospace,Menlo,Consolas,monospace}
 .emodes{display:flex;gap:0;margin:8px 0 2px}
-.emodes button{border-radius:0;padding:3px 12px;font-size:12px}
+.emodes button{border-radius:0;padding:0 12px;font-size:var(--fs-sm)}
 .emodes button:first-child{border-radius:8px 0 0 8px}
 .emodes button:last-child{border-radius:0 8px 8px 0;border-left:0}
 .emodes button[aria-pressed=true]{background:var(--card);border-color:var(--hot);font-weight:600}
@@ -149,12 +158,12 @@ summary::-webkit-details-marker{display:none}
 .elink.empty{color:var(--text2);font-style:italic}
 .elinkin{font:inherit;font-size:13px;color:var(--text);background:var(--card);border:1px solid var(--sel);border-radius:4px;padding:1px 4px;max-width:100%}
 .eadd{margin-top:10px;padding-top:10px;border-top:2px solid var(--line)}
-.eaddbtn{width:100%;height:30px;border:1px dashed var(--text2);border-radius:6px;background:transparent;color:var(--text);cursor:pointer;font-weight:500}
+.eaddbtn{width:100%;border:1px dashed var(--text2);border-radius:var(--r-ctl);background:transparent;color:var(--text);cursor:pointer;font-weight:500}
 .eaddbtn:hover:not(:disabled){background:var(--card)}
 .eaddbtn:disabled{opacity:.5;cursor:default}
 .ef{display:flex;flex-direction:column;font-size:11px;color:var(--text2);min-width:0}
-.ef input[type=text],.ef select{width:100%;min-width:0;font:inherit;font-size:13px;color:var(--text);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:3px 6px;height:28px}
-.ef.echk{flex-direction:row;align-items:center;gap:6px;height:28px}
+.ef input[type=text],.ef select{width:100%;min-width:0;font:inherit;font-size:13px;color:var(--text);background:var(--card);border:1px solid var(--line);border-radius:var(--r-ctl);padding:0 var(--sp-2);height:var(--ctl-h)}
+.ef.echk{flex-direction:row;align-items:center;gap:6px;height:var(--ctl-h)}
 .enum{padding:0}
 #editBtn[aria-pressed=true]{background:var(--card);border-color:var(--hot)}
 #note{margin:2px 0 0;font-size:12px;color:var(--text2);min-height:1em}
@@ -205,41 +214,47 @@ summary::-webkit-details-marker{display:none}
     <section id="editor" hidden aria-label="Editor"></section>
     <div id="viewer">
     <div id="stagewrap">
-      <div id="vizbar" role="group" aria-label="View panel">
+      <section id="stage"><svg id="svg" role="img" aria-label="Animated flow diagram"></svg></section>
+      <aside id="vizbar" aria-label="View panel">
         <div id="vphead"><span>View</span><button id="vpToggle" type="button" aria-expanded="true" title="Hide or show the view panel">Hide</button></div>
         <div id="vpbody">
-          <div class="vprow" aria-label="Playback">
-            <button id="restart" type="button">Restart</button>
-            <button id="prev" type="button">Prev</button>
-            <button id="play" type="button">Pause</button>
-            <button id="next" type="button">Next</button>
+          <div class="vpsec">
+            <h3>Playback</h3>
+            <div class="vpbtns">
+              <button id="restart" type="button">Restart</button>
+              <button id="prev" type="button">Prev</button>
+              <button id="play" type="button">Pause</button>
+              <button id="next" type="button">Next</button>
+            </div>
+            <div class="vpline"><input id="scrub" type="range" min="0" max="0" value="0" aria-label="Step"><output id="count">1 / 1</output></div>
+            <div class="vpfield"><label for="spd">Speed</label><input id="spd" type="range" min="0.5" max="3" step="0.5" value="1"><output id="spdl">1x</output></div>
+            <div class="vpchecks">
+              <label><input id="loop" type="checkbox" checked> Loop</label>
+              <label><input id="trail" type="checkbox" checked> Trail</label>
+            </div>
           </div>
-          <div class="vprow">
-            <input id="scrub" type="range" min="0" max="0" value="0" aria-label="Step">
-            <span id="count">1 / 1</span>
+          <div class="vpsec">
+            <h3>Display</h3>
+            <div class="vpfield"><label for="optDir">Orientation</label><select id="optDir"><option value="LR">Horizontal</option><option value="TB">Vertical</option></select></div>
+            <div class="vpfield"><label for="optConn">Connections</label><select id="optConn"><option value="auto">Auto</option><option value="bezier">Bezier</option><option value="linear">Linear</option><option value="orthogonal">Orthogonal</option></select></div>
+            <div class="vpfield"><label for="optStep">Step style</label><select id="optStep"><option value="kind">By kind</option><option value="solid">Solid</option><option value="dashed">Dashed</option><option value="dotted">Dotted</option></select></div>
+            <div class="vpchecks"><label><input id="optLabels" type="checkbox" checked> Labels</label></div>
+            <div class="vpfield"><label for="optThick">Thickness</label><input id="optThick" type="range" min="1" max="6" step="0.5" value="1.5"><output id="optThickL">1.5</output></div>
           </div>
-          <div class="vprow">
-            <label>Speed <input id="spd" type="range" min="0.5" max="3" step="0.5" value="1"> <span id="spdl">1x</span></label>
-            <label><input id="loop" type="checkbox" checked> Loop</label>
-            <label><input id="trail" type="checkbox" checked> Trail</label>
-            <label><input id="optLabels" type="checkbox" checked> Labels</label>
-          </div>
-          <div class="vprow vpgrid">
-            <label>Orientation <select id="optDir"><option value="LR">Horizontal</option><option value="TB">Vertical</option></select></label>
-            <label>Connections <select id="optConn"><option value="auto">Auto</option><option value="bezier">Bezier</option><option value="linear">Linear</option><option value="orthogonal">Orthogonal</option></select></label>
-            <label>Step style <select id="optStep"><option value="kind">By kind</option><option value="solid">Solid</option><option value="dashed">Dashed</option><option value="dotted">Dotted</option></select></label>
-            <label>Thickness <input id="optThick" type="range" min="1" max="6" step="0.5" value="1.5" aria-label="Line thickness"> <span id="optThickL">1.5</span></label>
-          </div>
-          <div class="vprow">
-            <button id="zin" type="button" title="Zoom in" aria-label="Zoom in">+</button>
-            <button id="zout" type="button" title="Zoom out" aria-label="Zoom out">&minus;</button>
-            <button id="zreset" type="button" title="Reset zoom and position">Reset</button>
-            <button id="maxBtn" type="button" aria-pressed="false" title="Maximize the visualization (M)">Maximize</button>
-            <button id="fsBtn" type="button" aria-pressed="false" title="Fullscreen (F)">Fullscreen</button>
+          <div class="vpsec">
+            <h3>Zoom and view</h3>
+            <div class="vpbtns" style="--cols:3">
+              <button id="zin" type="button" title="Zoom in" aria-label="Zoom in">+</button>
+              <button id="zout" type="button" title="Zoom out" aria-label="Zoom out">&minus;</button>
+              <button id="zreset" type="button" title="Reset zoom and position">Reset</button>
+            </div>
+            <div class="vpbtns" style="--cols:2">
+              <button id="maxBtn" type="button" aria-pressed="false" title="Maximize the visualization (M)">Maximize</button>
+              <button id="fsBtn" type="button" aria-pressed="false" title="Fullscreen (F)">Fullscreen</button>
+            </div>
           </div>
         </div>
-      </div>
-      <section id="stage"><svg id="svg" role="img" aria-label="Animated flow diagram"></svg></section>
+      </aside>
     </div>
     <div id="legend"></div>
 
