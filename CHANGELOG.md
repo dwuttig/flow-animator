@@ -18,6 +18,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Project now follows Domain-Driven Design: bounded contexts and vertical slices documented in `docs/architecture.md` and `docs/ubiquitous-language.md`; agents, spec and plan templates updated. Code restructuring is proposed in `docs/features/ddd-restructure.md`.
 
 ### Added
+- **View panel**: one floating panel over the top right of the diagram holds playback (Restart, Prev, Play, Next, scrubber, Speed, Loop, Trail), display (Orientation, Connections, Step style, Thickness) and zoom (+, −, Reset, Maximize, Fullscreen). Hide/Show collapses it and is remembered. The old controls row, options row and top-right bar are removed. See `docs/features/view-panel.md`.
 - Viewer: **Maximize/Minimize** (key `M`) and **Fullscreen** (key `F`) for the visualization; an overlay at the top right of the diagram holds the **Orientation** (Horizontal/Vertical) and Maximize controls. An options row adds **Connections** (Auto, Bezier, Linear, Orthogonal), **Step style** (By kind, Solid, Dashed, Dotted) and a line **Thickness** slider (remembered in the browser, except orientation).
 - Flow format: optional `layout.connection` (`auto`, `bezier`, `linear`, `orthogonal`); `FlowCore.layout(model, {direction, connection})` accepts overrides.
 - Editor: steps can be edited as a **Sentence** (Outlook rule style: click an underlined node, kind, label, detail or payload to change it); a **Fields | Sentence** toggle above the steps remembers the choice.

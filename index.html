@@ -33,14 +33,26 @@ button:focus-visible,input:focus-visible,li[tabindex]:focus-visible{outline:2px 
 #svg.ss-dotted .edge{stroke-dasharray:2 4;stroke-linecap:round}
 #stagewrap{position:relative;margin:20px 0 4px}
 #stagewrap #stage{margin:0}
-#vizbar{position:absolute;top:8px;right:8px;z-index:2;display:flex;gap:6px;align-items:center;padding:4px;border-radius:10px;background:color-mix(in srgb,var(--bg) 80%,transparent);backdrop-filter:blur(4px)}
-#vizbar select{font:inherit;font-size:13px;color:var(--text);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:5px 8px}
+#vizbar{position:absolute;top:8px;right:8px;z-index:3;width:max-content;max-width:min(340px,calc(100% - 16px));padding:6px 8px;border-radius:10px;font-size:13px;color:var(--text2);background:color-mix(in srgb,var(--bg) 88%,transparent);border:1px solid var(--line);backdrop-filter:blur(4px)}
+#vphead{display:flex;justify-content:space-between;align-items:center;gap:10px}
+#vpbody{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+#vizbar.collapsed #vpbody{display:none}
+#vizbar.collapsed #vphead{margin:0}
+.vprow{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.vprow>input[type=range]{flex:1 1 120px;min-width:80px}
+.vpgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px 10px}
+#vizbar input[type=range]{min-width:0;width:100%}
+#vizbar .vprow label input[type=range]{width:90px}
+@media (max-width:600px){#vizbar{position:static;width:auto;max-width:none;margin-bottom:8px}.vpgrid{grid-template-columns:minmax(0,1fr)}}
+#vizbar label{display:inline-flex;align-items:center;gap:6px;line-height:1.2}
+#vizbar .vpgrid label{justify-content:space-between}
+#vizbar input{margin:0}
+#vizbar input[type=range]{accent-color:var(--hot)}
+#vizbar #count{min-width:3.5em;text-align:center;white-space:nowrap}
+#vizbar select{font:inherit;font-size:13px;color:var(--text);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:3px 6px;max-width:110px}
+#vizbar button{padding:4px 8px}
 #viewer:fullscreen #stagewrap,#viewer.maxed #stagewrap{flex:1 1 auto;min-height:0;display:flex;margin:0}
 #viewer:fullscreen #stagewrap #stage,#viewer.maxed #stagewrap #stage{flex:1 1 auto;width:100%}
-#viewopts{display:flex;gap:14px;align-items:center;justify-content:center;flex-wrap:wrap;margin:4px 0;font-size:13px;color:var(--text2)}
-#viewopts label{display:inline-flex;align-items:center;gap:6px;line-height:1;white-space:nowrap}
-#viewopts select{font:inherit;font-size:13px;color:var(--text);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:3px 6px}
-#viewopts input[type=range]{width:90px;margin:0;accent-color:var(--hot)}
 .k-response{stroke-dasharray:6 4}
 .k-async,.k-event{stroke-dasharray:2 4;stroke-linecap:round}
 .edge.done{stroke:var(--done);opacity:.75}
@@ -66,11 +78,6 @@ button:focus-visible,input:focus-visible,li[tabindex]:focus-visible{outline:2px 
 #cap .route{color:var(--text2);font-size:13px;margin-left:6px}
 #cap .d{color:var(--text2);margin-top:2px}
 #cap code{display:inline-block;margin-top:4px;font:12px ui-monospace,Menlo,Consolas,monospace;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:1px 8px}
-#controls{display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;margin:14px 0 4px;font-size:13px;color:var(--text2)}
-#controls label{display:inline-flex;align-items:center;gap:6px;line-height:1;white-space:nowrap}
-#controls input{margin:0}
-#controls #count{min-width:3.5em;text-align:center;white-space:nowrap}
-#controls input[type=range]{accent-color:var(--hot)}
 #scrub{flex:1 1 200px;min-width:120px}
 #spd{width:90px}
 #steps{list-style:none;counter-reset:s;margin:14px 0 0;padding:0;width:100%}
@@ -195,34 +202,44 @@ summary::-webkit-details-marker{display:none}
     <section id="editor" hidden aria-label="Editor"></section>
     <div id="viewer">
     <div id="stagewrap">
-      <div id="vizbar">
-        <select id="optDir" aria-label="Orientation" title="Orientation"><option value="LR">Horizontal</option><option value="TB">Vertical</option></select>
-        <button id="maxBtn" type="button" aria-pressed="false" title="Maximize the visualization (M)">Maximize</button>
+      <div id="vizbar" role="group" aria-label="View panel">
+        <div id="vphead"><span>View</span><button id="vpToggle" type="button" aria-expanded="true" title="Hide or show the view panel">Hide</button></div>
+        <div id="vpbody">
+          <div class="vprow" aria-label="Playback">
+            <button id="restart" type="button">Restart</button>
+            <button id="prev" type="button">Prev</button>
+            <button id="play" type="button">Pause</button>
+            <button id="next" type="button">Next</button>
+          </div>
+          <div class="vprow">
+            <input id="scrub" type="range" min="0" max="0" value="0" aria-label="Step">
+            <span id="count">1 / 1</span>
+          </div>
+          <div class="vprow">
+            <label>Speed <input id="spd" type="range" min="0.5" max="3" step="0.5" value="1"> <span id="spdl">1x</span></label>
+            <label><input id="loop" type="checkbox" checked> Loop</label>
+            <label><input id="trail" type="checkbox" checked> Trail</label>
+          </div>
+          <div class="vprow vpgrid">
+            <label>Orientation <select id="optDir"><option value="LR">Horizontal</option><option value="TB">Vertical</option></select></label>
+            <label>Connections <select id="optConn"><option value="auto">Auto</option><option value="bezier">Bezier</option><option value="linear">Linear</option><option value="orthogonal">Orthogonal</option></select></label>
+            <label>Step style <select id="optStep"><option value="kind">By kind</option><option value="solid">Solid</option><option value="dashed">Dashed</option><option value="dotted">Dotted</option></select></label>
+            <label>Thickness <input id="optThick" type="range" min="1" max="6" step="0.5" value="1.5" aria-label="Line thickness"> <span id="optThickL">1.5</span></label>
+          </div>
+          <div class="vprow">
+            <button id="zin" type="button" title="Zoom in" aria-label="Zoom in">+</button>
+            <button id="zout" type="button" title="Zoom out" aria-label="Zoom out">&minus;</button>
+            <button id="zreset" type="button" title="Reset zoom and position">Reset</button>
+            <button id="maxBtn" type="button" aria-pressed="false" title="Maximize the visualization (M)">Maximize</button>
+            <button id="fsBtn" type="button" aria-pressed="false" title="Fullscreen (F)">Fullscreen</button>
+          </div>
+        </div>
       </div>
       <section id="stage"><svg id="svg" role="img" aria-label="Animated flow diagram"></svg></section>
     </div>
     <div id="legend"></div>
 
     <section id="cap" aria-live="polite"></section>
-
-    <section id="controls">
-      <button id="restart" type="button">Restart</button>
-      <button id="prev" type="button">Prev</button>
-      <button id="play" type="button">Pause</button>
-      <button id="next" type="button">Next</button>
-      <input id="scrub" type="range" min="0" max="0" value="0" aria-label="Step">
-      <span id="count">1 / 1</span>
-      <label>Speed <input id="spd" type="range" min="0.5" max="3" step="0.5" value="1"> <span id="spdl">1x</span></label>
-      <label><input id="loop" type="checkbox" checked> Loop</label>
-      <label><input id="trail" type="checkbox" checked> Trail</label>
-      <button id="fsBtn" type="button" aria-pressed="false" title="Fullscreen (F)">Fullscreen</button>
-    </section>
-
-    <section id="viewopts" aria-label="Rendering options">
-      <label>Connections <select id="optConn"><option value="auto">Auto</option><option value="bezier">Bezier</option><option value="linear">Linear</option><option value="orthogonal">Orthogonal</option></select></label>
-      <label>Step style <select id="optStep"><option value="kind">By kind</option><option value="solid">Solid</option><option value="dashed">Dashed</option><option value="dotted">Dotted</option></select></label>
-      <label>Thickness <input id="optThick" type="range" min="1" max="6" step="0.5" value="1.5" aria-label="Line thickness"> <span id="optThickL">1.5</span></label>
-    </section>
 
     <ol id="steps"></ol>
     </div>
@@ -848,6 +865,23 @@ summary::-webkit-details-marker{display:none}
   /* ---------- rendering options and maximize ---------- */
 
   var V = { direction: null, connection: null, step: 'kind', thick: 1.5 };
+  var VP_KEY = 'flow-animator.viewpanel';
+  function setPanel(collapsed) {
+    $('vizbar').classList.toggle('collapsed', collapsed);
+    $('vpToggle').textContent = collapsed ? 'Show' : 'Hide';
+    $('vpToggle').setAttribute('aria-expanded', String(!collapsed));
+    try { localStorage.setItem(VP_KEY, collapsed ? '1' : '0'); } catch (e) {}
+  }
+  $('vpToggle').addEventListener('click', function () { setPanel(!$('vizbar').classList.contains('collapsed')); });
+  try { if (localStorage.getItem(VP_KEY) === '1') setPanel(true); } catch (e) {}
+  function zoomBy(f) {
+    if (!S.vp) return;
+    var vb = $('svg').viewBox.baseVal, cx = vb.width / 2, cy = vb.height / 2, v = S.view, k = Math.min(8, Math.max(0.2, v.k * f));
+    v.x = cx - (cx - v.x) * k / v.k; v.y = cy - (cy - v.y) * k / v.k; v.k = k; applyView();
+  }
+  $('zin').addEventListener('click', function () { zoomBy(1.25); });
+  $('zout').addEventListener('click', function () { zoomBy(0.8); });
+  $('zreset').addEventListener('click', function () { S.view = { k: 1, x: 0, y: 0 }; applyView(); });
   try {
     var saved = JSON.parse(localStorage.getItem('flow-animator.view') || '{}');
     if (C.CONNECTIONS.indexOf(saved.connection) >= 0) V.connection = saved.connection;
