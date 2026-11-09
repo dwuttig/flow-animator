@@ -1,12 +1,12 @@
 ﻿/*
  * render-diagram: draws a Flow's Geometry as SVG and shows Playback state (Playback context, browser only).
  *
- *   var d = RenderDiagram.create(document, { svg, stage, legend, steps, cap, core: FlowCore, onPick(stepIdx), wheelZooms() });
+ *   var d = RenderDiagram.create(document, { svg, stage, legend, steps, cap, core: FlowCore, onPick(stepIdx) });
  *   d.render(model, geo, keepView)   draw; keepView keeps pan/zoom (same Flow re-rendered)
  *   d.begin(beatIdx) d.move(t) d.hidePackets()   packets of the current Beat; t is eased 0..1
- *   d.paint({ idx, arrived, trail })  edge/node/step-list state, follows the Beat when the stage scrolls
+ *   d.paint({ idx, arrived, trail })  edge/node/step-label/step-list state, follows the Beat when the stage scrolls
  *   d.select(sel)                     editor selection {nodes, edges, glow:{nodes, edges}}; pans to new glow
- *   d.look({ thick, step })           line thickness and step style
+ *   d.look({ thick, step, labels })   line thickness, step style and step labels on/off
  *   d.zoom(factor) d.fit() d.panTo(gl) d.view()
  *   d.svgText(css)                    standalone SVG markup of the diagram
  * RenderDiagram.SHAPES: shape name -> draw(g, rect, el, metrics) -> label box {cx, cy, avail}; a new shape is one entry.
@@ -77,7 +77,7 @@
   function create(doc, o) {
     var svg = o.svg, C = o.core, KIND = (C && C.KIND_INFO) || {}, METRICS = (C && C.SHAPE_METRICS) || {};
     var model = null, geo = null, vp = null, gP = null;
-    var nodeEls = {}, edgeEls = {}, lens = {}, packets = [], liEls = [], sel = null, glowKey = '';
+    var nodeEls = {}, edgeEls = {}, lens = {}, packets = [], liEls = [], lblEls = [], sel = null, glowKey = '';
     var view = { k: 1, x: 0, y: 0 };
 
     function el(tag, attrs, parent) {
@@ -127,16 +127,17 @@
         var p = svg.createSVGPoint(); p.x = e.clientX; p.y = e.clientY;
         return p.matrixTransform(svg.getScreenCTM().inverse());
       }
-      // Plain wheel scrolls the page; Ctrl/Cmd+wheel (and trackpad pinch, which sends ctrlKey) zooms, or any wheel when wheelZooms().
+      // Plain wheel scrolls the page; Ctrl/Cmd+wheel (and trackpad pinch, which sends ctrlKey) zooms; Ctrl/Cmd+drag pans.
       svg.addEventListener('wheel', function (e) {
-        if (!(e.ctrlKey || e.metaKey || (o.wheelZooms && o.wheelZooms()))) return;
+        if (!(e.ctrlKey || e.metaKey)) return;
         e.preventDefault();
         var p = pt(e);
         zoomAt(Math.exp(-e.deltaY * (e.ctrlKey && Math.abs(e.deltaY) < 50 ? 0.01 : 0.0015)), p.x, p.y);
       }, { passive: false });
       var drag = null, moved = false;
       svg.addEventListener('pointerdown', function (e) {
-        if (e.button !== 0) return;
+        if (e.button !== 0 || !(e.ctrlKey || e.metaKey)) return;
+        e.preventDefault();
         drag = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y, id: e.pointerId }; moved = false;
       });
       svg.addEventListener('pointermove', function (e) {
@@ -153,6 +154,56 @@
       svg.addEventListener('pointercancel', end);
       svg.addEventListener('click', function (e) { if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; } }, true);
       svg.addEventListener('dblclick', function () { d.fit(); });
+    }
+
+    /* Step labels: one per step, beside its connection line, placed greedily so they avoid nodes and each other.
+       geo.optimized widens the search and falls back to the least overlapping spot. */
+    function placeLabels(g) {
+      lblEls = [];
+      var opt = !!geo.optimized, placed = [];
+      var tries = opt ? [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8, 0.35, 0.65, 0.25, 0.75, 0.15, 0.85] : [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8];
+      var cands = opt ? [[1, 1], [-1, 1], [0, 0], [1, 2], [-1, 2]] : [[1, 1], [-1, 1], [0, 0]];
+      Object.keys(geo.nodes).forEach(function (id) {
+        var r = geo.nodes[id]; placed.push({ x0: r.x - 2, y0: r.y - 2, x1: r.x + r.w + 2, y1: r.y + r.h + 2 });
+      });
+      function hit(b) { return placed.some(function (q) { return b.x0 < q.x1 && b.x1 > q.x0 && b.y0 < q.y1 && b.y1 > q.y0; }); }
+      function overlap(b) {
+        return placed.reduce(function (s, q) {
+          var w = Math.min(b.x1, q.x1) - Math.max(b.x0, q.x0), hh = Math.min(b.y1, q.y1) - Math.max(b.y0, q.y0);
+          return w > 0 && hh > 0 ? s + w * hh : s;
+        }, 0);
+      }
+      model.steps.forEach(function (s, si) {
+        var key = s.from + '>' + s.to, path = edgeEls[key], len = lens[key];
+        var txt = s.label.length > 26 ? s.label.slice(0, 25) + '…' : s.label;
+        var grp = el('g', { 'class': 'slbl' }, g);
+        var t = el('text', {}, grp);
+        t.textContent = txt;
+        el('title', {}, grp).textContent = s.label;
+        lblEls[si] = grp;
+        if (!path || !len) { grp.style.display = 'none'; return; }
+        var w = txt.length * 6.6, hgt = 14;
+        try { var bb = t.getBBox(); if (bb.width > 0) { w = bb.width; hgt = bb.height; } } catch (e) {}
+        w += 8; hgt += 2;
+        var best = null, least = null, leastV = Infinity;
+        for (var ti = 0; ti < tries.length && !best; ti++) {
+          var f = tries[ti], pt = path.getPointAtLength(len * f), a = path.getPointAtLength(Math.max(0, len * f - 3)), b = path.getPointAtLength(Math.min(len, len * f + 3));
+          var dx = b.x - a.x, dy = b.y - a.y, dd = Math.hypot(dx, dy) || 1, nx = -dy / dd, ny = dx / dd;
+          var ext = Math.abs(nx) * w / 2 + Math.abs(ny) * hgt / 2 + 3;
+          cands.forEach(function (c) {
+            if (best) return;
+            var off = c[0] * ext * (c[1] || 1);
+            var cx = Math.min(geo.width - w / 2 - 2, Math.max(w / 2 + 2, pt.x + nx * off)), cy = Math.min(geo.height - hgt / 2 - 2, Math.max(hgt / 2 + 2, pt.y + ny * off));
+            var box = { x0: cx - w / 2, y0: cy - hgt / 2, x1: cx + w / 2, y1: cy + hgt / 2, cx: cx, cy: cy };
+            if (!hit(box)) best = box;
+            else if (opt) { var ov = overlap(box); if (ov < leastV) { leastV = ov; least = box; } }
+          });
+        }
+        if (!best && least) best = least;
+        if (!best) { var m = path.getPointAtLength(len / 2); best = { x0: m.x - w / 2, y0: m.y - hgt / 2 - 8, x1: m.x + w / 2, y1: m.y + hgt / 2 - 8, cx: m.x, cy: m.y - 8 }; }
+        placed.push(best);
+        t.setAttribute('x', best.cx.toFixed(1)); t.setAttribute('y', best.cy.toFixed(1));
+      });
     }
 
     function legend() {
@@ -256,12 +307,12 @@
         el('path', { d: 'M1 1L9 5L1 9z', fill: 'context-stroke', stroke: 'context-stroke', 'stroke-width': 1, 'stroke-linejoin': 'round', 'stroke-dasharray': 'none' }, mk);
 
         vp = el('g', { id: 'vp' }, svg);
-        var gE = el('g', {}, vp), gN = el('g', {}, vp);
+        var gE = el('g', {}, vp), gN = el('g', {}, vp), gL = el('g', {}, vp);
         gP = el('g', {}, vp);
         if (!keepView) view = { k: 1, x: 0, y: 0 };
         applyView();
         initPanZoom();
-        edgeEls = {}; nodeEls = {}; lens = {}; packets = []; glowKey = '';
+        edgeEls = {}; nodeEls = {}; lens = {}; packets = []; lblEls = []; glowKey = '';
         // Geometry edges are already trimmed for the arrow head and carry their length.
         geo.edges.forEach(function (e) {
           var p = el('path', { 'class': 'edge k-' + e.kind, d: e.d, 'marker-end': 'url(#arr)' }, gE);
@@ -269,6 +320,7 @@
           lens[e.id] = typeof e.length === 'number' ? e.length : p.getTotalLength();
         });
         model.nodes.forEach(function (n) { nodeEls[n.id] = drawNode(gN, n, geo.nodes[n.id]); });
+        placeLabels(gL);
         legend();
         stepList();
         if (sel) applySel();
@@ -308,6 +360,8 @@
           edgeEls[id].classList.toggle('done', !act[id] && !!done[id]);
         });
         Object.keys(nodeEls).forEach(function (id) { nodeEls[id].classList.toggle('hl', !!hl[id]); });
+        var inBeat = {}; beat.forEach(function (si) { inBeat[si] = true; });
+        lblEls.forEach(function (g, si) { g.classList.toggle('active', !!inBeat[si]); });
         liEls.forEach(function (li, si) {
           var bi = model.stepBeat[si];
           li.classList.toggle('active', bi === st.idx);
@@ -318,6 +372,7 @@
       select: function (s) { sel = s; if (model) applySel(); },
       look: function (v) {
         svg.style.setProperty('--ew', String(v.thick));
+        svg.classList.toggle('nolabels', v.labels === false);
         svg.classList.remove('ss-solid', 'ss-dashed', 'ss-dotted');
         if (v.step && v.step !== 'kind') svg.classList.add('ss-' + v.step);
       },

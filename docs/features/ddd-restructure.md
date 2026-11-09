@@ -1,6 +1,6 @@
 # Restructure code into bounded contexts and vertical slices
 
-- Status: proposed
+- Status: in progress (Modeling, Layout, Playback done; Library transport and Distribution slices remain)
 - Plan: `docs/plans/ddd-restructure.md`
 - Bounded context: all (cross-cutting refactor); see [../architecture.md](../architecture.md)
 
@@ -25,5 +25,5 @@ None.
 
 ## Open questions
 - Keep the root facades permanently, or remove them in a later major version?
-- Split `index.html` into multiple script files (needs script tags and a change to the standalone bundler), or keep Playback inline until it grows?
+- Split `index.html` into multiple script files: done. The page lists the scripts, `viewer.js` wires them, and the standalone bundler and browser export read the page manifest.
 - Should the glossary names replace any current identifiers (e.g. "beat" is already used)?

@@ -32,7 +32,7 @@ A person or AI agent describes a system as a **Flow** (Nodes, Groups, ordered St
 - **Playback → Flow Library (apply-edit, Flow API)**: editor mode reuses the pure Edit engine so Edits behave the same in the browser and over MCP. To list, load and save stored Flows Playback calls the Flow Library's HTTP API (`/api/flows`) only through its `flow-gateway` slice, as a conformist. Playback never touches the Flow store or MCP transport directly.
 - **Distribution** only wires and packages; it contains no domain rules.
 
-Dependency rule: contexts depend only on another context's public API (its `index` entry), never on internals. No cycles. Allowed edges: Layout → Modeling, Playback → Modeling/Layout, Playback → Library's pure `apply-edit` (editor mode), Library → Modeling, Distribution → any public API. Modeling depends on nothing.
+Dependency rule: contexts depend only on another context's public API (its `index` entry), never on internals. No cycles. Allowed edges: Layout → Modeling, Playback → Modeling/Layout, Playback → Library's pure `apply-edit` and `flow-name` (editor mode, stored names), Library → Modeling, Distribution → any public API. Modeling depends on nothing. `test/architecture.test.js` enforces this on every `require` under `src/`.
 
 ## Vertical slices
 Inside a context, code is organised by use case (slice), not by technical layer. A slice holds everything for one capability: its input handling, domain logic, and tests. Shared kernel inside a context is allowed only for genuinely shared domain types.
@@ -40,7 +40,7 @@ Inside a context, code is organised by use case (slice), not by technical layer.
 Slices in today's code:
 - Flow Modeling: `src/flow-modeling/flow-modeling.js` (parse, validate, normalize, beats, registries and migrations)
 - Layout: `src/layout/layout.js`
-- Playback: `src/playback/play-flow/`, `render-diagram/`, `view-options/`, `dialogs/`, `flow-gateway/`, `save-flow/`, `export-flow/`, `flow-menu/`, `edit-flow/`
+- Playback: `src/playback/play-flow/`, `render-diagram/`, `view-options/`, `dialogs/`, `flow-gateway/`, `save-flow/`, `export-flow/`, `flow-menu/`, `edit-flow/`, plus `viewer/` (boot wiring, loaded last by `index.html`)
 - Flow Library: `src/flow-library/apply-edit/`, `flow-name/`, `store-core/`, `sqlite-store/`, plus `flow-store.js` and `mcp-server.js`
 - Distribution: `build-standalone.js`, `validate.js`, `Dockerfile`, `docker/`
 

@@ -31,6 +31,11 @@ COPY src/flow-modeling/flow-modeling.js ./src/flow-modeling/
 COPY src/layout/layout.js ./src/layout/
 COPY src/flow-library/flow-name/flow-name.js ./src/flow-library/flow-name/
 COPY src/flow-library/apply-edit/apply-edit.js ./src/flow-library/apply-edit/
+COPY src/playback/dialogs/dialogs.js ./src/playback/dialogs/
+COPY src/playback/play-flow/play-flow.js ./src/playback/play-flow/
+COPY src/playback/render-diagram/render-diagram.js ./src/playback/render-diagram/
+COPY src/playback/view-options/view-options.js ./src/playback/view-options/
+COPY src/playback/viewer/viewer.js ./src/playback/viewer/
 COPY src/playback/edit-flow/edit-flow.js ./src/playback/edit-flow/
 COPY src/playback/flow-gateway/flow-gateway.js ./src/playback/flow-gateway/
 COPY src/playback/save-flow/save-flow.js ./src/playback/save-flow/

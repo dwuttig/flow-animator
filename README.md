@@ -201,7 +201,7 @@ Common errors and fixes:
 
 Browsers block `?src=` on `file://` pages. Use a local server or one of the other options.
 
-Controls live in one **View panel** beside the diagram (see [docs/style-guide.md](docs/style-guide.md)): **Restart** (Home), **Prev/Next** (Left/Right arrows), **Play/Pause** (Space), scrubber, **Speed**, **Loop**, **Trail** (keeps completed arrows tinted); **Orientation**, **Connections** (Auto, Bezier, Linear, Orthogonal), **Step style** (By kind, Solid, Dashed, Dotted) and line **Thickness**; **+**, **−**, **Reset** zoom, **Maximize** (M) and **Fullscreen** (F). Esc leaves Maximize. **Hide/Show** collapses the panel (remembered). Click a step in the list to jump to it. Display settings are viewer settings (not saved in the file, except the default `layout.direction` and `layout.connection`) and are remembered in the browser. The viewer follows the system light/dark theme and starts paused if the OS asks for reduced motion.
+Controls live in one **View panel** beside the diagram (see [docs/style-guide.md](docs/style-guide.md)): **Restart** (Home), **Prev/Next** (Left/Right arrows), **Play/Pause** (Space), scrubber, **Speed**, **Loop**, **Trail** (keeps completed arrows tinted); **Orientation**, **Connections** (Auto, Bezier, Linear, Orthogonal), **Step style** (By kind, Solid, Dashed, Dotted) line **Thickness**, **Labels**, **Optimize layout** (fewer crossings and overlaps) and **Node spacing** (0.5x to 3x); **+**, **−**, **Reset** zoom (or **Ctrl + mouse wheel** to zoom and **Ctrl + drag** to pan; the plain wheel scrolls the page), **Maximize** (M) and **Fullscreen** (F). Esc leaves Maximize. **Hide/Show** collapses the panel (remembered). Click a step in the list to jump to it. Display settings are viewer settings (not saved in the file, except the default `layout.direction` and `layout.connection`) and are remembered in the browser. The viewer follows the system light/dark theme and starts paused if the OS asks for reduced motion.
 
 Other controls are **Play/Pause** (Space), **Prev/Next** (Left/Right arrows), **Restart** (Home), scrubber, **Speed**, **Loop**, and **Trail** (keeps completed arrows tinted). Click a step in the list to jump to it. **Maximize** (M) fills the window with the visualization and **Fullscreen** (F) uses the whole screen; Esc leaves Maximize. The viewer follows the system light/dark theme and starts paused if the OS asks for reduced motion.
 
@@ -263,7 +263,8 @@ Domain-Driven Design with vertical slices. Bounded contexts: Flow Modeling (core
 
 | File | Purpose |
 |---|---|
-| `index.html` | The viewer. Open it in a browser. |
+| `index.html` | The viewer page: markup, styles, built-in example and the script manifest. Open it in a browser. |
+| `src/playback/viewer/viewer.js` | Boots the viewer: wires the page controls to the Playback slices. |
 | `flow-core.js` | Parsing, validation, auto-layout (used by the viewer and the Node tools). |
 | `mcp-server.js`, `flow-store.js` | MCP server (stdio and HTTP) and its file/edit logic. |
 | `src/flow-modeling/flow-modeling.js` | Flow Modeling public API: parse, validate, normalize, beats, registries and migrations. |
@@ -272,7 +273,7 @@ Domain-Driven Design with vertical slices. Bounded contexts: Flow Modeling (core
 | `src/flow-library/store-core/` | Shared store contract and revision helpers. |
 | `src/flow-library/apply-edit/` | Pure Edit operations shared by the MCP server and editor mode. |
 | `src/playback/edit-flow/` | Editor mode UI (browser). |
-| `src/playback/play-flow/`, `render-diagram/`, `view-options/`, `dialogs/`, `flow-gateway/` | Playback, rendering, View settings, dialogs and live watch. |
+| `src/playback/play-flow/`, `render-diagram/`, `view-options/`, `dialogs/`, `flow-gateway/` | Playback, rendering (zoom: Ctrl + wheel, pan: Ctrl + drag), View settings (incl. Optimize layout, Node spacing), dialogs and live watch. |
 | `validate.js` | Command-line validator for agents and CI. |
 | `build-standalone.js` | Bundles viewer + one flow into a single HTML file. |
 | `flow.schema.json` | JSON Schema for editor autocomplete. `validate.js` is the stricter source of truth. |

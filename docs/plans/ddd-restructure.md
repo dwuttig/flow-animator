@@ -1,6 +1,6 @@
 # Plan: Restructure code into bounded contexts and vertical slices
 
-- Status: draft
+- Status: in progress (steps 5 and 6 remain)
 - Spec: `docs/features/ddd-restructure.md`
 
 ## Approach
@@ -11,15 +11,15 @@ The MCP server work (PR #5) is already merged, so Flow Library moves from curren
 Alternative rejected: big-bang move in one PR. It is hard to review and risks breaking Docker and MCP clients at once.
 
 ## Steps
-1. [ ] Add characterization tests for `flow-core.js` (validate, normalize, layout determinism on all `examples/`) so behaviour is pinned before moving code.
-2. [ ] Flow Modeling: create `src/flow-modeling/` with slices `parse-flow`, `validate-flow`, `derive-beats` and `index.js`; keep UMD wrapper.
-3. [ ] Layout: create `src/layout/` (`layout-flow`, `route-edges`); depends only on Modeling's public API.
-4. [ ] Make root `flow-core.js` a facade re-exporting Modeling + Layout (`parse`, `validate`, `normalize`, `layout`, `load`, `loadDoc`) so the browser and `validate.js` are unchanged.
+1. [x] Add characterization tests for `flow-core.js` (validate, normalize, layout determinism on all `examples/`) so behaviour is pinned before moving code.
+2. [x] Flow Modeling: create `src/flow-modeling/` with slices `parse-flow`, `validate-flow`, `derive-beats` and `index.js`; keep UMD wrapper.
+3. [x] Layout: create `src/layout/` (`layout-flow`, `route-edges`); depends only on Modeling's public API.
+4. [x] Make root `flow-core.js` a facade re-exporting Modeling + Layout (`parse`, `validate`, `normalize`, `layout`, `load`, `loadDoc`) so the browser and `validate.js` are unchanged.
 5. [ ] Flow Library: split `flow-store.js` into `flow-store/` and one slice per Edit under `edit-flow/`; move transport to `mcp-transport/`; `mcp-server.js` becomes the entry facade. Tools map to Edits in the slice, not in transport.
 6. [ ] Distribution: move `validate.js` and `build-standalone.js` logic into slices, keep root files as entry points; update Dockerfile `COPY` lines and `.dockerignore`.
-7. [ ] Playback: extract script from `index.html` into `src/playback/` slices once steps 1 to 6 are green; update `index.html` script tags and the standalone bundler to inline them in order.
-8. [ ] Add a dependency-rule check (`test/architecture.test.js`) that fails if a context requires another context's internals or if Modeling imports anything.
-9. [ ] Update README "Files" table, `docs/architecture.md` if names changed, and agent files if paths changed.
+7. [x] Playback: extract script from `index.html` into `src/playback/` slices once steps 1 to 6 are green; update `index.html` script tags and the standalone bundler to inline them in order.
+8. [x] Add a dependency-rule check (`test/architecture.test.js`) that fails if a context requires another context's internals or if Modeling imports anything.
+9. [x] Update README "Files" table, `docs/architecture.md` if names changed, and agent files if paths changed.
 
 ## Files touched
 `flow-core.js`, `flow-store.js`, `mcp-server.js`, `validate.js`, `build-standalone.js`, `index.html`, `Dockerfile`, `.dockerignore`, `README.md`, new `src/**`, new tests.

@@ -5,7 +5,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+- Viewer: **Ctrl + mouse wheel** zooms and **Ctrl + left-drag** pans the diagram; the plain wheel scrolls the page.
+- View panel: **Optimize layout** reorders nodes within their columns to reduce edge crossings and edges through nodes, and places step labels with less overlap; **Node spacing** (0.5x to 3x) scales the gaps between nodes. Both are viewer-only settings and are remembered.
+- Playback: **Download SVG** in the Flow menu (Export).
+
 ### Fixed
+- Docker: the `mcp` image crashed on start (`MODULE_NOT_FOUND`) and the viewer lost its Flow menu because the new `src/` modules were neither copied nor loaded by the page.
+- Standalone bundle and browser export read the page's own script list, so new slices can no longer be missing from the bundle.
 - MCP: tool schemas no longer put `null` in `enum` lists (strict clients rejected the whole tool list); clearing a field with null still works. MCP config dialog uses `docker.exe` on Windows (CreateProcess error 193).
 - Editor mode layout: the editing panel is now a left column next to the animated flow (right column) instead of stacked above it, and Group, Node and Step rows use a 12-column grid so labels, inputs, selects and buttons line up (stacked on screens narrower than 960px).
 - Docker: `/` returned 404 because the nginx `try_files` did not fall back to `index.html`.
@@ -16,7 +23,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - **Flow names have no `.json` suffix**: Save as asks only for a unique name (a typed `.flow.json` is stripped), the picker, `?flow=` links, `/api/flows/<name>` and MCP show bare names; the old `name.flow.json` form is still accepted, and SQLite databases created earlier are migrated. Names are unique ignoring case. Downloads are still `.flow.json` files.
 - **Default flow storage is now SQLite** (`node:sqlite`, no new dependency; Docker volume `flow-animator-data`, `/data/flows.db`). Set `FLOW_STORE=files` for the old folder of `*.flow.json`. The MCP config dialog's stdio command now mounts that volume instead of the flows folder.
 - `build-standalone.js` now shares its bundling code with the viewer's export (`src/playback/export-flow/`) and works with CRLF checkouts. The `pick-flow` slice is replaced by `flow-menu`.
-- Project now follows Domain-Driven Design: bounded contexts and vertical slices documented in `docs/architecture.md` and `docs/ubiquitous-language.md`; agents, spec and plan templates updated. Code restructuring is proposed in `docs/features/ddd-restructure.md`.
+- Project now follows Domain-Driven Design: bounded contexts and vertical slices documented in `docs/architecture.md` and `docs/ubiquitous-language.md`; agents, spec and plan templates updated. The code now follows it: Playback is split into slices (`play-flow`, `render-diagram`, `view-options`, `dialogs`, `viewer` wiring, ...), `index.html` holds only markup, styles and the built-in example, and `test/architecture.test.js` enforces the dependency rule (see `docs/features/ddd-restructure.md`).
 - File-store name lookup is case-insensitive and names are trimmed. MCP tool list order changed, and open SSE connections delay server close.
 
 ### Performance
