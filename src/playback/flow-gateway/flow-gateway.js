@@ -3,25 +3,52 @@
  * The only place in Playback that knows URLs and status codes. It does not
  * validate Flows; the server (Flow Modeling via Flow Library) has the final word.
  *
- *   var gw = FlowGateway.create({ fetch: fetch, base: 'api/flows', listing: 'flows/', getToken: fn });
+ *   var gw = FlowGateway.create({ fetch: fetch, base: 'api/flows', listing: 'flows/', getToken: fn, offline: bool });
  *   gw.available()               -> Promise<boolean>
  *   gw.list()                    -> Promise<[{file,title,nodes,steps,revision,modifiedAt}]>
  *   gw.load(name)                -> Promise<{text, revision}>        (revision null on the static fallback)
  *   gw.save(name, text, {ifMatch|create}) -> Promise<{ok:true,revision,warnings} | {ok:false,kind,...}>
  *   gw.remove(name, {ifMatch})   -> Promise<{ok:true} | {ok:false,kind,...}>
+ *   gw.watch(name, onRevision, {known, interval, backoff, timers}) -> stop()
+ *     onRevision({revision, deleted, text?}) when the stored revision differs from known(); Server-Sent Events
+ *     (GET <base>/<name>/events) with reconnect backoff, else If-None-Match polling every interval ms (1.5 s).
  *   kind: 'invalid' (errors, warnings) | 'conflict' (revision) | 'unauthorized' | 'unavailable' | 'notfound' | 'error'
- * URLs are relative, so the viewer works under any path prefix.
+ *   FlowGateway.parseSse(buffer) -> {events: [{event, data, id}], rest}   (pure)
+ * URLs are relative, so the viewer works under any path prefix. Needs FlowName loaded first.
  */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = { create: factory };
-  else root.FlowGateway = { create: factory };
-})(typeof self !== 'undefined' ? self : this, function create(opts) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('../../flow-library/flow-name/flow-name.js'));
+  else root.FlowGateway = factory(root.FlowName);
+})(typeof self !== 'undefined' ? self : this, function (FN) {
   'use strict';
+  var SUFFIX = FN.SUFFIX;
+
+  /* Split complete Server-Sent Events off the front of buffer; comments (": ping") are skipped. */
+  function parseSse(buf) {
+    var s = String(buf).replace(/\r\n?/g, '\n'), events = [], i;
+    while ((i = s.indexOf('\n\n')) >= 0) {
+      var block = s.slice(0, i), ev = { event: 'message', data: [], id: null };
+      s = s.slice(i + 2);
+      block.split('\n').forEach(function (line) {
+        if (!line || line.charAt(0) === ':') return;
+        var c = line.indexOf(':'), k = c < 0 ? line : line.slice(0, c), v = c < 0 ? '' : line.slice(c + 1);
+        if (v.charAt(0) === ' ') v = v.slice(1);
+        if (k === 'event') ev.event = v;
+        else if (k === 'data') ev.data.push(v);
+        else if (k === 'id') ev.id = v;
+      });
+      if (ev.data.length) events.push({ event: ev.event, data: ev.data.join('\n'), id: ev.id });
+    }
+    return { events: events, rest: s };
+  }
+
+  return { create: create, parseSse: parseSse };
+
+function create(opts) {
   opts = opts || {};
   var f = opts.fetch || (typeof fetch !== 'undefined' ? fetch.bind(typeof self !== 'undefined' ? self : this) : null);
   var base = (opts.base || 'api/flows').replace(/\/$/, '');
   var listing = opts.listing === undefined ? 'flows/' : opts.listing;
-  var SUFFIX = '.flow.json';
   var apiUp = null; // cached: null unknown, true, false
 
   function url(name) { return base + '/' + encodeURIComponent(name); }
@@ -52,6 +79,7 @@
     token: function () { return opts.getToken && opts.getToken(); },
 
     available: function () {
+      if (opts.offline) apiUp = false; // e.g. a file:// page: no server to ask
       if (apiUp !== null) return Promise.resolve(apiUp);
       return f(base, { headers: headers(), cache: 'no-store' }).then(function (r) {
         // 401 means the API exists but wants a token.
@@ -75,7 +103,7 @@
         }).then(function (a) {
           return (Array.isArray(a) ? a : []).filter(function (e) {
             return e && e.type === 'file' && typeof e.name === 'string' && e.name.slice(-SUFFIX.length) === SUFFIX;
-          }).map(function (e) { return { file: e.name.slice(0, -SUFFIX.length), title: null, revision: null, modifiedAt: e.mtime || null }; });
+          }).map(function (e) { return { file: FN.bare(e.name), title: null, revision: null, modifiedAt: e.mtime || null }; });
         }).catch(function () { return []; });
       }).catch(function () { return []; });
     },
@@ -83,7 +111,7 @@
     load: function (name, o) {
       o = o || {};
       return gw.available().then(function (up) {
-        var u = up ? url(name) : (listing || 'flows/') + encodeURIComponent(name.slice(-SUFFIX.length) === SUFFIX ? name : name + SUFFIX);
+        var u = up ? url(name) : (listing || 'flows/') + encodeURIComponent(FN.bare(name) + SUFFIX);
         var h = headers();
         if (up && o.ifNoneMatch) h['If-None-Match'] = '"' + o.ifNoneMatch + '"';
         return f(u, { headers: h, cache: 'no-store' }).then(function (r) {
@@ -118,7 +146,75 @@
     },
 
     /* Forget the cached availability (after a failure that may be temporary). */
-    reset: function () { apiUp = null; }
+    reset: function () { apiUp = null; },
+
+    watch: function (name, onRevision, o) {
+      o = o || {};
+      var T = o.timers || { set: function (fn, ms) { return setTimeout(fn, ms); }, clear: function (id) { clearTimeout(id); } };
+      var interval = o.interval || 1500, delays = o.backoff || [1000, 2000, 5000, 10000, 30000];
+      var last = null, lastText = null, gone = false, stopped = false, timer = null, ctrl = null, tries = 0, failures = 0;
+      var known = o.known || function () { return last; };
+      function emit(ev) {
+        if (stopped) return;
+        if (ev.deleted) { if (gone) return; gone = true; }
+        else { if (ev.revision !== null && ev.revision === known()) return; gone = false; }
+        last = ev.revision;
+        onRevision(ev);
+      }
+      function later(fn, ms) { T.clear(timer); timer = T.set(fn, ms); }
+      function poll() {
+        if (stopped) return;
+        gw.load(name, { ifNoneMatch: known() }).then(function (r) {
+          if (stopped) return;
+          if (r.ok && !r.notModified && typeof r.text === 'string') {
+            // The static fallback has no revision: compare the text instead.
+            if (r.revision === null) { if (lastText !== null && r.text !== lastText) emit({ revision: null, text: r.text, deleted: false }); lastText = r.text; }
+            else emit({ revision: r.revision, text: r.text, deleted: false });
+          } else if (!r.ok && r.kind === 'notfound') emit({ revision: null, deleted: true });
+        }, function () {}).then(function () { if (!stopped) later(poll, interval); });
+      }
+      function retry() { later(connect, delays[Math.min(tries++, delays.length - 1)]); }
+      function connect() {
+        if (stopped) return;
+        ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        f(url(name) + '/events', { headers: headers({ Accept: 'text/event-stream' }), cache: 'no-store', signal: ctrl ? ctrl.signal : undefined }).then(function (r) {
+          if (stopped) return;
+          failures = 0;
+          if (r.status === 401 || r.status === 429 || r.status >= 500) return retry();
+          if (!r.ok || !r.body || typeof r.body.getReader !== 'function' || typeof TextDecoder === 'undefined') return poll();
+          var reader = r.body.getReader(), dec = new TextDecoder(), buf = '';
+          function pump() {
+            return reader.read().then(function (c) {
+              if (stopped) return;
+              if (c.done) return retry();
+              var p = parseSse(buf + dec.decode(c.value, { stream: true }));
+              buf = p.rest;
+              p.events.forEach(function (ev) {
+                if (ev.event !== 'revision') return;
+                var d; try { d = JSON.parse(ev.data); } catch (e) { return; }
+                tries = 0;
+                emit({ revision: d && d.revision != null ? String(d.revision) : null, deleted: !!(d && d.deleted) });
+              });
+              return pump();
+            });
+          }
+          return pump();
+        }).catch(function () {
+          if (stopped) return;
+          // Never got a response three times in a row: the stream is not reachable here, poll instead.
+          if (++failures >= 3) poll(); else retry();
+        });
+      }
+      gw.available().then(function (up) {
+        if (stopped) return;
+        if (up && f) connect(); else poll();
+      });
+      return function stop() {
+        stopped = true; T.clear(timer);
+        if (ctrl) try { ctrl.abort(); } catch (e) {}
+      };
+    }
   };
   return gw;
+}
 });

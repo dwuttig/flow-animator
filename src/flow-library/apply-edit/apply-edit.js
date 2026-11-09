@@ -5,9 +5,9 @@
  * the result before persisting or showing it.
  */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory();
-  else root.FlowEdits = factory();
-})(typeof self !== 'undefined' ? self : this, function () {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('../../flow-modeling/flow-modeling.js'));
+  else root.FlowEdits = factory(root.FlowModeling);
+})(typeof self !== 'undefined' ? self : this, function (Modeling) {
 'use strict';
 
 function fail(msg) { var e = new Error(msg); e.userError = true; return e; }
@@ -33,9 +33,10 @@ function patch(target, fields) {
 var ops = {
   set_meta: function (doc, a) {
     patch(doc, { title: a.title, description: a.description });
-    if (a.direction !== undefined) {
-      if (a.direction === null) delete doc.layout;
-      else doc.layout = { direction: a.direction };
+    if (a.direction !== undefined || a.connection !== undefined) {
+      var lay = doc.layout && typeof doc.layout === 'object' && !Array.isArray(doc.layout) ? doc.layout : {};
+      patch(lay, { direction: a.direction, connection: a.connection });
+      if (Object.keys(lay).length) doc.layout = lay; else delete doc.layout;
     }
   },
   add_group: function (doc, a) {
@@ -146,13 +147,49 @@ var ops = {
 
 var NAMES = Object.keys(ops);
 
+/* describe: op name -> { description, properties (JSON Schema), required }. The one definition
+ * of each Edit's arguments; the MCP server builds its edit Tools from it. Enums hold strings only. */
+var STR = { type: 'string' };
+var NSTR = { type: ['string', 'null'] };
+var INT = { type: 'integer', minimum: 0 };
+var COLORS = { enum: Modeling.COLORS.slice() };
+var SHAPE = { enum: Modeling.SHAPES.slice() };
+var KIND = { enum: Modeling.KINDS.slice() };
+var DIR = { enum: Modeling.DIRS.slice() };
+var CONNECTION = { enum: Modeling.CONNECTIONS.slice() };
+var NULLNOTE = ' Pass null to remove the field.';
+function d(description, properties, required) { return { description: description, properties: properties, required: required || [] }; }
+
+var describe = {
+  set_meta: d('Change title, description, layout direction (LR or TB) or connection style (auto, bezier, linear, orthogonal).' + NULLNOTE,
+    { title: STR, description: NSTR, direction: DIR, connection: CONNECTION }),
+  add_group: d('Add a node group (colored band).', { id: STR, label: STR, color: COLORS }, ['id']),
+  update_group: d('Change a group.' + NULLNOTE, { id: STR, label: NSTR, color: COLORS }, ['id']),
+  remove_group: d('Remove a group. If nodes use it, pass cascade:true to ungroup them.', { id: STR, cascade: { type: 'boolean' } }, ['id']),
+  add_node: d('Add a component. Position is automatic; col/row are optional grid hints only.',
+    { id: STR, label: { type: 'string', maxLength: 28 }, subtitle: { type: 'string', maxLength: 36 }, group: STR, shape: SHAPE, col: INT, row: INT }, ['id', 'label']),
+  update_node: d('Change a node. new_id renames it and updates steps.' + NULLNOTE,
+    { id: STR, new_id: STR, label: STR, subtitle: NSTR, group: NSTR, shape: SHAPE, col: { type: ['integer', 'null'] }, row: { type: ['integer', 'null'] } }, ['id']),
+  remove_node: d('Remove a node. If steps use it, pass cascade:true to remove those steps too.', { id: STR, cascade: { type: 'boolean' } }, ['id']),
+  add_step: d('Add an interaction between two existing nodes. Appended unless "at" (0-based position) is given. together:true runs it in parallel with the previous step.',
+    { from: STR, to: STR, label: STR, detail: STR, payload: STR, kind: KIND, together: { type: 'boolean' }, at: INT }, ['from', 'to', 'label']),
+  update_step: d('Change the step at a 0-based index.' + NULLNOTE,
+    { index: INT, from: STR, to: STR, label: STR, detail: NSTR, payload: NSTR, kind: KIND, together: { type: ['boolean', 'null'] } }, ['index']),
+  remove_step: d('Remove the step at a 0-based index.', { index: INT }, ['index']),
+  set_parallel: d('Make the step at "index" play in one beat with exactly the steps listed in "with" (0-based). Chosen steps are moved next to it and stored as together flags; steps no longer chosen become their own beat. Empty "with" = plays alone.',
+    { index: INT, with: { type: 'array', items: INT } }, ['index', 'with']),
+  move_step: d('Move a step from one 0-based index to another.', { index: INT, to_index: INT }, ['index', 'to_index'])
+};
+
+function has(op) { return typeof op === 'string' && Object.prototype.hasOwnProperty.call(ops, op); }
+
 /* Apply one Edit to a deep copy of doc and return the copy. Throws a userError on misuse. */
 function apply(doc, op, args) {
-  if (!ops[op]) throw fail('unknown operation ' + op);
+  if (!has(op)) throw fail('unknown operation ' + op);
   var copy = JSON.parse(JSON.stringify(doc));
   ops[op](copy, args || {});
   return copy;
 }
 
-return { ops: ops, names: NAMES, apply: apply, fail: fail };
+return { ops: ops, names: NAMES, describe: describe, has: has, apply: apply, fail: fail };
 });

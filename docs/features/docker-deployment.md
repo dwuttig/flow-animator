@@ -18,7 +18,9 @@ The viewer must be hosted somewhere reproducible. Opening `index.html` from disk
 ## Behaviour
 - Image: nginx-unprivileged (non-root, port 8080) serving `index.html`, `flow-core.js`, `flow.schema.json`, `examples/`.
 - `/healthz` returns `ok`; `/flows/` returns a JSON directory listing.
+- nginx proxies `/api/` to the MCP service with `proxy_buffering off` and `proxy_read_timeout 1h`, so Flow API Server-Sent Events stay open.
 - `no-cache` headers so edited flows reload immediately.
+- The viewer image copies all of `src/`; tests are excluded by `.dockerignore`.
 
 ## File-format impact
 None.

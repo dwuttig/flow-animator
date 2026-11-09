@@ -12,12 +12,15 @@ One vocabulary for code, docs, specs, agents and conversation. If a word here an
 | **Beat** | A set of Steps that play together. Derived, never authored. |
 | **Format version** | The `format` value (`flow-animator/1`). The published language other contexts depend on. |
 | **Violation** | A validation error or warning with a `path` and `message`. |
+| **Migration** | A registered upgrade from an older format to the current format, applied before validation. |
+| **Kind info** | The Modeling registry describing each Step kind's label and line style. |
 
 ## Layout (supporting)
 | Term | Meaning |
 |---|---|
 | **Geometry** | Positions, sizes, edge routes and bounds computed for a Flow. Never authored; agents never specify coordinates. |
 | **Edge** | A routed connection between two Nodes in the Geometry. |
+| **Shape metrics** | Layout's registry of the size adjustments for each Node shape. |
 
 ## Playback (viewer)
 | Term | Meaning |
@@ -41,6 +44,7 @@ One vocabulary for code, docs, specs, agents and conversation. If a word here an
 | **Revision** | Content hash of a stored Flow, used to detect that it changed since it was loaded. |
 | **Conflict** | A save or delete that carried an older Revision than the stored one; rejected, nothing written. |
 | **Flow API** | The HTTP interface of the Flow Library (`/api/flows`). |
+| **Live watch** | A viewer subscription to Flow API Server-Sent Events, with polling fallback, that reloads a stored Flow when its Revision changes. |
 
 ## Distribution (generic)
 | Term | Meaning |

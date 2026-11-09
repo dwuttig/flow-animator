@@ -18,7 +18,7 @@ Flows are stored in a SQLite database on the `flow-animator-data` volume (see "S
 
 ## Editor mode
 
-Click **Edit** in the viewer to change the flow in the browser: title, groups, nodes and steps, with undo/redo. Every change is validated before it is shown; invalid changes are rejected. Use **Download** or **Copy JSON** to keep the result (the viewer cannot write to your `./flows` folder; agents can, via MCP). Steps can be edited as **Fields** or as a **Sentence** ("Client sends Submit order to API gateway as a call...", click an underlined value to change it); the toggle above the steps remembers your choice. No coordinates to set: layout stays automatic. Script access: `FlowAnimator.edit("add_node", {id:"x", label:"X"})`.
+Click **Edit** in the viewer to change the flow in the browser: title, groups, nodes and steps, with undo/redo. Every change is validated before it is shown; invalid changes are rejected. Steps support drag-and-drop reorder, **+ After**, and a **Connections** select. Use **Download** or **Copy JSON** to keep the result (the viewer cannot write to your `./flows` folder; agents can, via MCP). Steps can be edited as **Fields** or as a **Sentence** ("Client sends Submit order to API gateway as a call...", click an underlined value to change it); the toggle above the steps remembers your choice. No coordinates to set: layout stays automatic. Script access: `FlowAnimator.edit("add_node", {id:"x", label:"X"})`.
 
 ## MCP server (create and edit flows)
 
@@ -28,8 +28,8 @@ Click **Edit** in the viewer to change the flow in the browser: title, groups, n
 - Local stdio: `node mcp-server.js` (database `./flows/flows.db`; `FLOW_DB` changes it), or `docker run -i --rm -v flow-animator-data:/data flow-animator-mcp node mcp-server.js` to share the compose volume.
 - Local HTTP: `node mcp-server.js --http 8081`.
 - Client config (stdio): `{"mcpServers":{"flow-animator":{"command":"node","args":["/path/to/mcp-server.js"],"env":{"FLOW_DB":"/path/to/flows.db"}}}}`. For HTTP use the URL `http://localhost:8081/mcp`.
-- Tools: `list_flows`, `read_flow`, `validate_flow`, `create_flow`, `delete_flow`, `set_meta`, `add_group`/`update_group`/`remove_group`, `add_node`/`update_node`/`remove_node`, `add_step`/`update_step`/`remove_step`/`move_step`/`set_parallel`. Resources: `flow://schema`, `flow://guide`.
-- Tests: `node --test`.
+- Tools: `list_flows`, `list_revisions`, `read_flow` (including a revision), `validate_flow`, `create_flow`, `delete_flow`, `set_meta` (including connection), `add_group`/`update_group`/`remove_group`, `add_node`/`update_node`/`remove_node`, `add_step`/`update_step`/`remove_step`/`move_step`/`set_parallel`. Resources: `flow://schema`, `flow://guide`.
+- Tests: `npm test` (`node --test`). Other scripts are `npm run validate`, `npm run mcp`, `npm run mcp:http`, and `npm run build:standalone`.
 - Linux note: with `FLOW_STORE=files` the container runs as a non-root user; if `./flows` is not writable by it, run `chmod a+w flows`.
 
 ---
@@ -203,7 +203,11 @@ Browsers block `?src=` on `file://` pages. Use a local server or one of the othe
 
 Controls live in one **View panel** beside the diagram (see [docs/style-guide.md](docs/style-guide.md)): **Restart** (Home), **Prev/Next** (Left/Right arrows), **Play/Pause** (Space), scrubber, **Speed**, **Loop**, **Trail** (keeps completed arrows tinted); **Orientation**, **Connections** (Auto, Bezier, Linear, Orthogonal), **Step style** (By kind, Solid, Dashed, Dotted) and line **Thickness**; **+**, **−**, **Reset** zoom, **Maximize** (M) and **Fullscreen** (F). Esc leaves Maximize. **Hide/Show** collapses the panel (remembered). Click a step in the list to jump to it. Display settings are viewer settings (not saved in the file, except the default `layout.direction` and `layout.connection`) and are remembered in the browser. The viewer follows the system light/dark theme and starts paused if the OS asks for reduced motion.
 
-Agents that drive a browser can use the page API: `FlowAnimator.load(objectOrJsonText)` returns `{ ok, errors, warnings }`; `FlowAnimator.jump(beatIndex, true)` shows a step; `FlowAnimator.state()` reports progress.
+Other controls are **Play/Pause** (Space), **Prev/Next** (Left/Right arrows), **Restart** (Home), scrubber, **Speed**, **Loop**, and **Trail** (keeps completed arrows tinted). Click a step in the list to jump to it. **Maximize** (M) fills the window with the visualization and **Fullscreen** (F) uses the whole screen; Esc leaves Maximize. The viewer follows the system light/dark theme and starts paused if the OS asks for reduced motion.
+
+Stored flows opened with `?watch=1` are live through Server-Sent Events, with polling fallback. Agents that drive a browser can use the page API: `FlowAnimator.load(objectOrJsonText)` returns `{ ok, errors, warnings }`; `FlowAnimator.jump(beatIndex, true)` shows a step; `FlowAnimator.state()` reports progress.
+
+The Flow API supports `PATCH {op,args}`, `GET /revisions`, `?revision=`, and `GET /events` in addition to list/read/write/delete.
 
 ---
 
@@ -262,11 +266,18 @@ Domain-Driven Design with vertical slices. Bounded contexts: Flow Modeling (core
 | `index.html` | The viewer. Open it in a browser. |
 | `flow-core.js` | Parsing, validation, auto-layout (used by the viewer and the Node tools). |
 | `mcp-server.js`, `flow-store.js` | MCP server (stdio and HTTP) and its file/edit logic. |
+| `src/flow-modeling/flow-modeling.js` | Flow Modeling public API: parse, validate, normalize, beats, registries and migrations. |
+| `src/layout/layout.js` | Automatic geometry and edge routing. |
+| `src/flow-library/flow-name/` | Stored Flow name normalization and validation. |
+| `src/flow-library/store-core/` | Shared store contract and revision helpers. |
 | `src/flow-library/apply-edit/` | Pure Edit operations shared by the MCP server and editor mode. |
 | `src/playback/edit-flow/` | Editor mode UI (browser). |
+| `src/playback/play-flow/`, `render-diagram/`, `view-options/`, `dialogs/`, `flow-gateway/` | Playback, rendering, View settings, dialogs and live watch. |
 | `validate.js` | Command-line validator for agents and CI. |
 | `build-standalone.js` | Bundles viewer + one flow into a single HTML file. |
 | `flow.schema.json` | JSON Schema for editor autocomplete. `validate.js` is the stricter source of truth. |
 | `examples/order-flow.flow.json` | Full example. |
+
+Adding a browser slice means adding its `<script>` tag to `index.html`; the standalone bundle and browser export read that page manifest.
 
 Limits worth knowing: node labels are truncated to the box width, there is no free-form drawing, and automatic layout favours short, readable flows (up to about 14 nodes and 40 steps).

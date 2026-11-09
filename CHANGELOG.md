@@ -9,6 +9,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - MCP: tool schemas no longer put `null` in `enum` lists (strict clients rejected the whole tool list); clearing a field with null still works. MCP config dialog uses `docker.exe` on Windows (CreateProcess error 193).
 - Editor mode layout: the editing panel is now a left column next to the animated flow (right column) instead of stacked above it, and Group, Node and Step rows use a 12-column grid so labels, inputs, selects and buttons line up (stacked on screens narrower than 960px).
 - Docker: `/` returned 404 because the nginx `try_files` did not fall back to `index.html`.
+- `set_meta` no longer wipes `layout.connection`; editor Copy JSON and Remove node no longer raise `ReferenceError`; rejected edits reset the form; edits reset pan/zoom correctly; and Tab focus is restored.
 
 ### Changed
 - Viewer layout: the page is centered with a 1440px maximum width and all sections share the same width; the diagram scales to that width but never below 90% of its natural size (wide flows scroll horizontally and follow the active step); the step details panel has a fixed height (scrolls); control alignment fixed.
@@ -16,6 +17,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - **Default flow storage is now SQLite** (`node:sqlite`, no new dependency; Docker volume `flow-animator-data`, `/data/flows.db`). Set `FLOW_STORE=files` for the old folder of `*.flow.json`. The MCP config dialog's stdio command now mounts that volume instead of the flows folder.
 - `build-standalone.js` now shares its bundling code with the viewer's export (`src/playback/export-flow/`) and works with CRLF checkouts. The `pick-flow` slice is replaced by `flow-menu`.
 - Project now follows Domain-Driven Design: bounded contexts and vertical slices documented in `docs/architecture.md` and `docs/ubiquitous-language.md`; agents, spec and plan templates updated. Code restructuring is proposed in `docs/features/ddd-restructure.md`.
+- File-store name lookup is case-insensitive and names are trimmed. MCP tool list order changed, and open SSE connections delay server close.
+
+### Performance
+- Each edit performs one validation/layout pass; edges are no longer resampled. Animation uses `requestAnimationFrame` only while playing, and model step/beat and node maps speed playback and lookup.
+- SQLite list columns and a prepared-statement cache reduce storage overhead; live watch uses SSE instead of polling when available.
+
+### UX
+- The View ▾ toolbar keeps zoom controls above the stage without covering Nodes, with Flow default options, remembered orientation, SVG export, editor drag-and-drop reorder, + After, Connections, styled confirmation dialogs and restored focus.
+
+### Extensibility
+- Operation descriptors drive MCP tools; Modeling and Layout registries centralize kind and shape metadata; the migration hook, Revision history, PATCH API and SVG export are public extension points.
+
+### Maintainability
+- Modeling, Layout, Playback and Flow Library were split into vertical slices, including `store-core` and `flow-name`. Standalone/export script manifests come from page tags, package scripts document supported commands, and the MCP store is lazy-loaded.
 
 ### Added
 - **Step labels on connections**: each Step's label is drawn next to its connection line at all times (placed to avoid nodes and other labels); the active Step's label is highlighted (bold, no background box). A **Labels** checkbox in the View panel hides them (remembered). Labels also appear in the recorded video. See `docs/features/step-labels.md`.

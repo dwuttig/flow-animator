@@ -11,13 +11,14 @@ Flow files are written by AI agents, but people often need to make small correct
 - Edit **nodes**: add, rename, change subtitle, shape and group, duplicate, delete.
 - Edit **steps**: form for `label`, `detail`, `payload`, `kind`, `from`, `to`, and a **Together with** multi-select of the other steps in the same beat (`set_parallel`: chosen steps move next to this one; the file format keeps `together` flags); add, duplicate, delete.
 - **Create a step by dragging** from one node to another (`from`/`to` prefilled, then the form opens).
-- **Reorder steps** by dragging in the step list (changes animation order).
+- **Reorder steps** by dragging in the step list (changes animation order), and add a step with **+ After**.
 - **Edit groups**: create, rename, delete, set colour, assign nodes.
 - **Drag nodes** to reposition. Positions snap to the existing column/row grid and are stored as `col`/`row` on the moved nodes only.
 - **Undo / redo** (Ctrl+Z / Ctrl+Y) over every edit.
 - **Live validation panel** showing the same errors and warnings as `validate.js` (same `flow-core.js`).
 - **Save** as a download (`<name>.flow.json`); use the File System Access API to save in place where the browser supports it. Works from `file://`, no server.
 - **Unsaved-changes warning** before closing the page or loading another flow.
+- **Focus restore** keeps the active field, caret and panel scroll position after a redraw; rejected edits reset the form to the Draft.
 - **Round-trip unknown fields** (`$schema`, future properties) on export, so editing never silently drops data.
 - The standalone bundle (`build-standalone.js`) **includes the editor**, so recipients can edit and re-export.
 
@@ -38,6 +39,7 @@ Flow files are written by AI agents, but people often need to make small correct
 - **Validation panel**: lists errors and warnings with JSON paths; clicking one selects the offending node or step. Invalid intermediate states are allowed while typing; Save warns when errors exist but does not block, and never writes anything the user did not ask for.
 - **Playback while editing**: Play, scrub and step controls keep working on the current edited state. Edits reset playback to the selected step.
 - **Watch mode**: with `?watch=1`, file polling is **paused while in edit mode** so external changes cannot overwrite edits. A small notice says "Watching paused while editing".
+- **Connections** is a select in the editor's metadata section; it uses the same Flow Modeling values as the viewer.
 - **Page API**: `FlowAnimator.load()` while editing with unsaved changes replaces the flow like today (agent-driven use is unchanged); the unsaved-changes warning applies only to user-initiated loads. `FlowAnimator.state()` additionally reports `{ editing, dirty }`.
 
 Example: dragging "Orders DB" to column 3, row 1 only changes that node:

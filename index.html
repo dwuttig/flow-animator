@@ -54,7 +54,9 @@ button:focus-visible,input:focus-visible,li[tabindex]:focus-visible{outline:2px 
 .vpfield select{grid-column:2/4;width:100%}
 .vpfield input[type=range]{width:100%}
 .vpfield output{min-width:2.5em;text-align:right}
-.vpchecks{display:flex;gap:var(--sp-4)}
+.vphint{font-size:var(--fs-sm);color:var(--text2)}
+body.ctrl #svg{cursor:grab}
+.vpchecks{display:flex;gap:var(--sp-4);flex-wrap:wrap}
 .vpchecks label{display:inline-flex;align-items:center;gap:var(--sp-2)}
 @media (max-width:760px){#stagewrap{flex-direction:column}#vizbar{width:100%}}
 @media (max-width:1399px){body.editing #stagewrap{flex-direction:column}body.editing #vizbar{width:100%}}
@@ -238,7 +240,8 @@ summary::-webkit-details-marker{display:none}
             <div class="vpfield"><label for="optDir">Orientation</label><select id="optDir"><option value="LR">Horizontal</option><option value="TB">Vertical</option></select></div>
             <div class="vpfield"><label for="optConn">Connections</label><select id="optConn"><option value="auto">Auto</option><option value="bezier">Bezier</option><option value="linear">Linear</option><option value="orthogonal">Orthogonal</option></select></div>
             <div class="vpfield"><label for="optStep">Step style</label><select id="optStep"><option value="kind">By kind</option><option value="solid">Solid</option><option value="dashed">Dashed</option><option value="dotted">Dotted</option></select></div>
-            <div class="vpchecks"><label><input id="optLabels" type="checkbox" checked> Labels</label></div>
+            <div class="vpchecks"><label><input id="optLabels" type="checkbox" checked> Labels</label><label title="Reorder nodes and place step labels to reduce overlaps and crossings"><input id="optOpt" type="checkbox"> Optimize layout</label></div>
+            <div class="vpfield"><label for="optSpace">Node spacing</label><input id="optSpace" type="range" min="0.5" max="3" step="0.1" value="1"><output id="optSpaceL">1.0x</output></div>
             <div class="vpfield"><label for="optThick">Thickness</label><input id="optThick" type="range" min="1" max="6" step="0.5" value="1.5"><output id="optThickL">1.5</output></div>
           </div>
           <div class="vpsec">
@@ -248,6 +251,7 @@ summary::-webkit-details-marker{display:none}
               <button id="zout" type="button" title="Zoom out" aria-label="Zoom out">&minus;</button>
               <button id="zreset" type="button" title="Reset zoom and position">Reset</button>
             </div>
+            <div class="vphint">Ctrl + wheel: zoom. Ctrl + drag: pan. Double-click: reset.</div>
             <div class="vpbtns" style="--cols:2">
               <button id="maxBtn" type="button" aria-pressed="false" title="Maximize the visualization (M)">Maximize</button>
               <button id="fsBtn" type="button" aria-pressed="false" title="Fullscreen (F)">Fullscreen</button>
@@ -280,7 +284,10 @@ summary::-webkit-details-marker{display:none}
 
 <noscript>This tool needs JavaScript.</noscript>
 
+<script src="src/flow-modeling/flow-modeling.js"></script>
+<script src="src/layout/layout.js"></script>
 <script src="flow-core.js"></script>
+<script src="src/flow-library/flow-name/flow-name.js"></script>
 <script src="src/flow-library/apply-edit/apply-edit.js"></script>
 <script src="src/playback/edit-flow/edit-flow.js"></script>
 <script src="src/playback/flow-gateway/flow-gateway.js"></script>
@@ -419,6 +426,7 @@ summary::-webkit-details-marker{display:none}
       return p.matrixTransform(svg.getScreenCTM().inverse());
     }
     svg.addEventListener('wheel', function (e) {
+      if (!e.ctrlKey) return;
       e.preventDefault();
       var v = S.view, p = pt(e), k = Math.min(8, Math.max(0.2, v.k * Math.exp(-e.deltaY * 0.0015)));
       v.x = p.x - (p.x - v.x) * k / v.k; v.y = p.y - (p.y - v.y) * k / v.k; v.k = k;
@@ -426,7 +434,8 @@ summary::-webkit-details-marker{display:none}
     }, { passive: false });
     var drag = null, moved = false;
     svg.addEventListener('pointerdown', function (e) {
-      if (e.button !== 0) return;
+      if (e.button !== 0 || !e.ctrlKey) return;
+      e.preventDefault();
       drag = { x: e.clientX, y: e.clientY, vx: S.view.x, vy: S.view.y, id: e.pointerId }; moved = false;
     });
     svg.addEventListener('pointermove', function (e) {
@@ -521,7 +530,14 @@ summary::-webkit-details-marker{display:none}
   /* Step labels: one per step, beside its connection line, placed greedily so they avoid nodes and each other. */
   function placeLabels(model, geo, g) {
     S.lblEls = [];
-    var placed = [], tries = [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8];
+    var opt = !!geo.optimized, placed = [], tries = opt ? [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8, 0.35, 0.65, 0.25, 0.75, 0.15, 0.85] : [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8];
+    var cands = opt ? [[1, 1], [-1, 1], [0, 0], [1, 2], [-1, 2]] : [[1, 1], [-1, 1], [0, 0]];
+    function overlap(b) {
+      return placed.reduce(function (s, q) {
+        var w = Math.min(b.x1, q.x1) - Math.max(b.x0, q.x0), h = Math.min(b.y1, q.y1) - Math.max(b.y0, q.y0);
+        return w > 0 && h > 0 ? s + w * h : s;
+      }, 0);
+    }
     Object.keys(geo.nodes).forEach(function (id) {
       var r = geo.nodes[id]; placed.push({ x0: r.x - 2, y0: r.y - 2, x1: r.x + r.w + 2, y1: r.y + r.h + 2 });
     });
@@ -538,18 +554,21 @@ summary::-webkit-details-marker{display:none}
       var w = txt.length * 6.6, hgt = 14;
       try { var bb = t.getBBox(); if (bb.width > 0) { w = bb.width; hgt = bb.height; } } catch (e) {}
       w += 8; hgt += 2;
-      var best = null;
+      var best = null, least = null, leastV = Infinity;
       for (var ti = 0; ti < tries.length && !best; ti++) {
         var f = tries[ti], pt = path.getPointAtLength(len * f), a = path.getPointAtLength(Math.max(0, len * f - 3)), b = path.getPointAtLength(Math.min(len, len * f + 3));
         var dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1, nx = -dy / d, ny = dx / d;
         var ext = Math.abs(nx) * w / 2 + Math.abs(ny) * hgt / 2 + 3;
-        [[1, ext], [-1, ext], [0, 0]].forEach(function (c) {
+        cands.forEach(function (c) {
           if (best) return;
-          var cx = Math.min(geo.width - w / 2 - 2, Math.max(w / 2 + 2, pt.x + nx * c[0] * c[1])), cy = Math.min(geo.height - hgt / 2 - 2, Math.max(hgt / 2 + 2, pt.y + ny * c[0] * c[1]));
+          var off = c[0] * ext * (c[1] || 1);
+          var cx = Math.min(geo.width - w / 2 - 2, Math.max(w / 2 + 2, pt.x + nx * off)), cy = Math.min(geo.height - hgt / 2 - 2, Math.max(hgt / 2 + 2, pt.y + ny * off));
           var box = { x0: cx - w / 2, y0: cy - hgt / 2, x1: cx + w / 2, y1: cy + hgt / 2, cx: cx, cy: cy };
           if (!hit(box)) best = box;
+          else if (opt) { var ov = overlap(box); if (ov < leastV) { leastV = ov; least = box; } }
         });
       }
+      if (!best && least) best = least;
       if (!best) { var m = path.getPointAtLength(len / 2); best = { x0: m.x - w / 2, y0: m.y - hgt / 2 - 8, x1: m.x + w / 2, y1: m.y + hgt / 2 - 8, cx: m.x, cy: m.y - 8 }; }
       placed.push(best);
       t.setAttribute('x', best.cx.toFixed(1)); t.setAttribute('y', best.cy.toFixed(1));
@@ -908,7 +927,7 @@ summary::-webkit-details-marker{display:none}
     S.name = name; S.text = text;
     S.model = res.model;
     var lo = layoutOpts(res.model);
-    S.geo = (lo.direction !== res.model.direction || lo.connection !== res.model.connection) ? C.layout(res.model, lo) : res.geometry;
+    S.geo = (lo.direction !== res.model.direction || lo.connection !== res.model.connection || lo.optimize || lo.spacing !== 1) ? C.layout(res.model, lo) : res.geometry;
     syncOpts(res.model);
     render(res.model, S.geo);
     $('src').textContent = (saver.name() === name && srcLabel()) || ('Source: ' + name);
@@ -999,18 +1018,20 @@ summary::-webkit-details-marker{display:none}
     if (['kind', 'solid', 'dashed', 'dotted'].indexOf(saved.step) >= 0) V.step = saved.step;
     if (saved.thick >= 1 && saved.thick <= 6) V.thick = +saved.thick;
     if (saved.labels === false) V.labels = false;
+    if (saved.optimize === true) V.optimize = true;
+    if (saved.spacing >= 0.5 && saved.spacing <= 3) V.spacing = +saved.spacing;
   } catch (e) {}
 
   function saveView() {
-    try { localStorage.setItem('flow-animator.view', JSON.stringify({ connection: V.connection, step: V.step, thick: V.thick, labels: V.labels })); } catch (e) {}
+    try { localStorage.setItem('flow-animator.view', JSON.stringify({ connection: V.connection, step: V.step, thick: V.thick, labels: V.labels, optimize: V.optimize, spacing: V.spacing })); } catch (e) {}
   }
   function layoutOpts(model) {
-    return { direction: V.direction || model.direction, connection: V.connection || model.connection };
+    return { direction: V.direction || model.direction, connection: V.connection || model.connection, optimize: !!V.optimize, spacing: V.spacing || 1 };
   }
   function syncOpts(model) {
     var o = layoutOpts(model);
     $('optDir').value = o.direction; $('optConn').value = o.connection;
-    $('optLabels').checked = V.labels !== false; $('optStep').value = V.step; $('optThick').value = String(V.thick); $('optThickL').textContent = String(V.thick);
+    $('optLabels').checked = V.labels !== false; $('optOpt').checked = !!V.optimize; $('optSpace').value = String(V.spacing || 1); $('optSpaceL').textContent = (V.spacing || 1).toFixed(1) + 'x'; $('optStep').value = V.step; $('optThick').value = String(V.thick); $('optThickL').textContent = String(V.thick);
     applyLook();
   }
   function applyLook() {
@@ -1031,6 +1052,11 @@ summary::-webkit-details-marker{display:none}
   }
   $('optDir').addEventListener('change', function () { V.direction = this.value; relayout(); });
   $('optConn').addEventListener('change', function () { V.connection = this.value; saveView(); relayout(); });
+  $('optSpace').addEventListener('input', function () { V.spacing = +this.value; $('optSpaceL').textContent = V.spacing.toFixed(1) + 'x'; saveView(); relayout(); });
+  $('optOpt').addEventListener('change', function () { V.optimize = this.checked; saveView(); relayout(); });
+  window.addEventListener('keydown', function (e) { if (e.key === 'Control') document.body.classList.add('ctrl'); });
+  window.addEventListener('keyup', function (e) { if (e.key === 'Control') document.body.classList.remove('ctrl'); });
+  window.addEventListener('blur', function () { document.body.classList.remove('ctrl'); });
   $('optLabels').addEventListener('change', function () { V.labels = this.checked; saveView(); applyLook(); });
   $('optStep').addEventListener('change', function () { V.step = this.value; saveView(); applyLook(); });
   $('optThick').addEventListener('input', function () {

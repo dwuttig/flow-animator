@@ -11,3 +11,4 @@
 !docker/nginx.conf
 !src/
 !src/**
+**/*.test.js

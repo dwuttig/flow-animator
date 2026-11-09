@@ -145,3 +145,56 @@ test('names: legacy rows with the suffix are renamed when the database is opened
 test('names: a name ending in .json is rejected (it would be confused with a file)', function () {
   assert.throws(function () { newStore().write('x.json', DOC); }, function (e) { return e.userError; });
 });
+
+test('list reads title and counts from columns, not from the body', function () {
+  var st = newStore();
+  st.write('x', DOC);
+  st.db.prepare("UPDATE flows SET body = '{nope' WHERE name = 'x'").run();
+  var l = st.list();
+  assert.strictEqual(l[0].title, 'T'); assert.strictEqual(l[0].nodes, 2); assert.strictEqual(l[0].steps, 1);
+  assert.strictEqual(l[0].error, undefined);
+});
+
+test('migration: an older database gets title/nodes/steps columns backfilled and keeps working', function () {
+  var file = path.join(tmp(), 'old.db');
+  var DatabaseSync = require('node:sqlite').DatabaseSync;
+  var raw = new DatabaseSync(file);
+  raw.exec('CREATE TABLE flows (name TEXT PRIMARY KEY COLLATE NOCASE, body TEXT NOT NULL, revision TEXT NOT NULL, modified_at TEXT NOT NULL); CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);');
+  var text = JSON.stringify(DOC, null, 2) + '\n';
+  raw.prepare('INSERT INTO flows VALUES (?,?,?,?)').run('old', text, S.revisionOf(text), 'then');
+  raw.prepare('INSERT INTO flows VALUES (?,?,?,?)').run('broken', '{nope', 'r', 'then');
+  raw.close();
+  var st = new SQ.SqliteStore(file);
+  var l = st.list();
+  assert.deepStrictEqual(l.map(function (f) { return f.file; }), ['broken', 'old']);
+  assert.strictEqual(l[0].error, 'not valid JSON');
+  assert.strictEqual(l[1].title, 'T'); assert.strictEqual(l[1].nodes, 2); assert.strictEqual(l[1].steps, 1);
+  assert.deepStrictEqual(st.revisions('old'), [{ revision: S.revisionOf(text), modifiedAt: 'then' }]);
+  st.close();
+  assert.strictEqual(new SQ.SqliteStore(file).list()[1].title, 'T');
+});
+
+test('history: every write is kept newest first, readRevision returns old bodies, newest 50 kept, remove clears it', function () {
+  var st = newStore(), revs = [];
+  for (var i = 0; i < 53; i++) { var d = clone(DOC); d.title = 'v' + i; revs.push(st.write('x', d).revision); }
+  var rs = st.revisions('X.flow.json');
+  assert.strictEqual(rs.length, 50);
+  assert.strictEqual(rs[0].revision, revs[52]);
+  assert.strictEqual(rs[49].revision, revs[3]);
+  assert.strictEqual(st.readRevision('x', revs[10]).doc.title, 'v10');
+  assert.strictEqual(st.readRevision('x', revs[10]).revision, revs[10]);
+  assert.throws(function () { st.readRevision('x', revs[0]); }, function (e) { return e.userError; });
+  st.write('y', DOC);
+  st.remove('x');
+  assert.strictEqual(st.db.prepare("SELECT COUNT(*) AS n FROM flow_history WHERE name = 'x'").get().n, 0);
+  assert.strictEqual(st.revisions('y').length, 1);
+  st.write('x', DOC);
+  assert.strictEqual(st.revisions('x').length, 1);
+});
+
+test('history: writing an earlier revision again moves it to the top without duplicates', function () {
+  var st = newStore(), d = clone(DOC); d.title = 'B';
+  var a = st.write('x', DOC).revision, b = st.write('x', d).revision;
+  st.write('x', DOC);
+  assert.deepStrictEqual(st.revisions('x').map(function (r) { return r.revision; }), [a, b]);
+});

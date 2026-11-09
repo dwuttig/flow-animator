@@ -8,27 +8,24 @@
  *   host.markClean()          the Draft equals what is stored
  *   host.report(errs, warns)  show Violations
  *   host.notify(msg)          short status line
- *   host.askName(def)         -> name or null
- *   host.askToken()           -> token or null (also stored by the host)
- *   host.confirm(msg)         -> boolean
+ *   host.askName(def)         -> name or null, or a Promise of it
+ *   host.askToken()           -> token or null (also stored by the host), or a Promise of it
+ *   host.confirm(msg)         -> boolean, or a Promise of it
  *   var saver = FlowSaver.create(host, gateway)
+ * Needs FlowName (Flow Library, flow-name) loaded first.
  */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = { create: factory, NAME_RE: /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/ };
-  else root.FlowSaver = { create: factory, NAME_RE: /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/ };
-})(typeof self !== 'undefined' ? self : this, function create(host, gw) {
+  if (typeof module === 'object' && module.exports) module.exports = { create: factory(require('../../flow-library/flow-name/flow-name.js')) };
+  else root.FlowSaver = { create: factory(root.FlowName) };
+})(typeof self !== 'undefined' ? self : this, function (FN) { return function create(host, gw) {
   'use strict';
-  var NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
   var name = null, revision = null;
 
-  function normalize(n) {
-    n = String(n || '').trim();
-    return n.replace(/\.flow\.json$/i, '').replace(/\.json$/i, '');
-  }
+  function normalize(n) { return FN.bare(String(n || '')).replace(/\.json$/i, ''); }
 
   function suggest() {
     var t; try { t = JSON.parse(host.getText()).title; } catch (e) { t = ''; }
-    return (String(t || 'flow').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'flow');
+    return FN.slug(t);
   }
 
   function handle(r, retry, what) {
@@ -40,9 +37,10 @@
     }
     if (r.kind === 'invalid') { host.report(r.errors, r.warnings); host.notify('Not saved: the flow has errors'); return r; }
     if (r.kind === 'unauthorized') {
-      var t = host.askToken();
-      if (t) return retry();
-      host.notify('Not saved: a token is required'); return r;
+      return Promise.resolve(host.askToken()).then(function (t) {
+        if (t) return retry();
+        host.notify('Not saved: a token is required'); return r;
+      });
     }
     if (r.kind === 'unavailable') { host.notify('Not saved: the server is not reachable. Use Download.'); return r; }
     host.notify('Not saved: ' + (r.message || r.kind));
@@ -67,26 +65,28 @@
     },
 
     saveAs: function () {
-      var n = normalize(host.askName(name || suggest()));
-      if (!n) return Promise.resolve({ ok: false, kind: 'cancelled' });
-      if (!NAME_RE.test(n)) { host.notify('Not saved: use letters, digits, dot, dash or underscore'); return Promise.resolve({ ok: false, kind: 'badname' }); }
-      return gw.save(n, host.getText(), { create: true }).then(function (r) {
-        if (!r.ok && r.kind === 'conflict') {
-          host.notify('Not saved: ' + n + ' already exists. Choose another name.');
-          return r;
-        }
-        return handle(r, function () { return saver.saveAs(); }, { name: n });
+      return Promise.resolve(host.askName(name || suggest())).then(function (answer) {
+        var n = normalize(answer);
+        if (!n) return { ok: false, kind: 'cancelled' };
+        if (!FN.isValid(n)) { host.notify('Not saved: use letters, digits, dot, dash or underscore'); return { ok: false, kind: 'badname' }; }
+        return gw.save(n, host.getText(), { create: true }).then(function (r) {
+          if (!r.ok && r.kind === 'conflict') {
+            host.notify('Not saved: ' + n + ' already exists. Choose another name.');
+            return r;
+          }
+          return handle(r, function () { return saver.saveAs(); }, { name: n });
+        });
       });
     }
   };
 
   /* Stored revision moved on since this Draft was loaded. */
   function conflict(n, r) {
-    if (host.confirm('"' + n + '" changed on the server since you opened it.\n\nOK = overwrite it with your version.\nCancel = keep editing (use Save as... or Reload).')) {
-      return gw.save(n, host.getText(), {}).then(function (r2) { return handle(r2, saver.save, { name: n }); });
-    }
-    host.notify('Not saved: the server has a newer version');
-    return Promise.resolve(r);
+    return Promise.resolve(host.confirm('"' + n + '" changed on the server since you opened it.\n\nOK = overwrite it with your version.\nCancel = keep editing (use Save as... or Reload).')).then(function (yes) {
+      if (yes) return gw.save(n, host.getText(), {}).then(function (r2) { return handle(r2, saver.save, { name: n }); });
+      host.notify('Not saved: the server has a newer version');
+      return r;
+    });
   }
 
   /* Discard the Draft and take the stored version. */
@@ -100,4 +100,4 @@
     });
   };
   return saver;
-});
+}; });

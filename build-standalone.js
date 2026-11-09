@@ -25,10 +25,10 @@ if (!res.ok) {
 }
 
 var X = require(path.join(__dirname, 'src/playback/export-flow/export-flow.js'));
-var sources = {};
-X.SCRIPTS.forEach(function (f) { sources[f] = fs.readFileSync(path.join(__dirname, f), 'utf8'); });
+var page = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8'), sources = {};
+X.scriptsOf(page.split('\r\n').join('\n')).forEach(function (f) { sources[f] = fs.readFileSync(path.join(__dirname, f), 'utf8'); });
 var html;
-try { html = X.standaloneHtml(fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8'), sources, flowText); }
+try { html = X.standaloneHtml(page, sources, flowText); }
 catch (e) { console.error('Could not bundle: ' + e.message); process.exit(1); }
 
 fs.writeFileSync(out, html);

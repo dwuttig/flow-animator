@@ -1,0 +1,17 @@
+﻿{
+  "name": "flow-animator",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Describe a system as a Flow (nodes, groups, ordered steps), validate it, lay it out automatically and play it back as an animation; create and edit Flows over MCP.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "test": "node --test",
+    "validate": "node validate.js",
+    "mcp": "node mcp-server.js",
+    "mcp:http": "node mcp-server.js --http",
+    "build:standalone": "node build-standalone.js"
+  }
+}

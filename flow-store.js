@@ -5,35 +5,29 @@
  */
 'use strict';
 var fs = require('fs');
-var crypto = require('crypto');
 var path = require('path');
-var Core = require('./flow-core.js');
-var Edits = require('./src/flow-library/apply-edit/apply-edit.js');
+var K = require('./src/flow-library/store-core/store-core.js');
 
-var SUFFIX = '.flow.json';
+var SUFFIX = K.SUFFIX;
 
 function Store(dir) {
   this.dir = path.resolve(dir);
 }
 
-var fail = Edits.fail;
-var ops = Edits.ops;
+var fail = K.fail;
+var ops = K.ops;
+var revisionOf = K.revisionOf;
+var validName = K.validName;
+var stats = K.stats;
+var validate = K.validate;
 
-/* A Flow name is a bare unique name such as "orders". A trailing ".flow.json" is accepted and
- * stripped, so older names, links and clients keep working. Returns the bare name. */
-var NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
-function bareName(name) {
-  if (typeof name !== 'string' || !name) throw fail('flow name must be a non-empty string');
-  return name.slice(-SUFFIX.length) === SUFFIX ? name.slice(0, -SUFFIX.length) : name;
-}
-function validName(name) {
-  var n = bareName(name);
-  if (!NAME_RE.test(n) || /\.json$/i.test(n)) throw fail('flow name must be 1-100 letters, digits, dot, dash or underscore, starting with a letter or digit, e.g. "orders"');
-  return n;
-}
-
+/* Path of a flow file. An existing file whose name differs only in case is reused, so names are unique ignoring case. */
 Store.prototype.resolve = function (name) {
-  return path.join(this.dir, validName(name) + SUFFIX);
+  var file = validName(name) + SUFFIX, full = path.join(this.dir, file);
+  if (fs.existsSync(full) || !fs.existsSync(this.dir)) return full;
+  var low = file.toLowerCase();
+  var hit = fs.readdirSync(this.dir).filter(function (n) { return n.toLowerCase() === low; })[0];
+  return hit ? path.join(this.dir, hit) : full;
 };
 
 Store.prototype.list = function () {
@@ -47,17 +41,11 @@ Store.prototype.list = function () {
       var full = path.join(self.dir, n), raw = fs.readFileSync(full, 'utf8');
       out.revision = revisionOf(raw);
       out.modifiedAt = fs.statSync(full).mtime.toISOString();
-      var d = JSON.parse(raw);
-      out.title = d.title || null;
-      out.nodes = Array.isArray(d.nodes) ? d.nodes.length : 0;
-      out.steps = Array.isArray(d.steps) ? d.steps.length : 0;
+      Object.assign(out, K.summary(JSON.parse(raw)));
     } catch (e) { out.error = 'not valid JSON'; }
     return out;
   });
 };
-
-/* Revision: first 16 hex chars of the SHA-256 of the file bytes. */
-function revisionOf(raw) { return crypto.createHash('sha256').update(raw).digest('hex').slice(0, 16); }
 
 /* Current revision of a stored flow, or null if it does not exist. */
 Store.prototype.revision = function (name) {
@@ -75,14 +63,22 @@ Store.prototype.readWithRevision = function (name) {
   catch (e) { throw fail(name + ' is not valid JSON: ' + e.message); }
 };
 
-/* Check a precondition: opts.ifMatch (revision) or opts.ifNoneMatch === '*'. */
-Store.prototype.checkPrecondition = function (name, opts) {
-  opts = opts || {};
-  var cur = this.revision(name);
-  if (opts.ifNoneMatch === '*' && cur !== null) return { ok: false, conflict: true, revision: cur };
-  if (opts.ifMatch !== undefined && opts.ifMatch !== null && opts.ifMatch !== cur) return { ok: false, conflict: true, revision: cur };
-  return null;
+/* A folder keeps no history: the current revision only, [{ revision, modifiedAt }]. */
+Store.prototype.revisions = function (name) {
+  var full = this.resolve(name);
+  if (!fs.existsSync(full)) throw fail('no such flow: ' + name);
+  return [{ revision: revisionOf(fs.readFileSync(full)), modifiedAt: fs.statSync(full).mtime.toISOString() }];
 };
+
+/* { doc, revision, text } of a revision; only the current one exists in a folder. */
+Store.prototype.readRevision = function (name, rev) {
+  var r = this.readWithRevision(name);
+  if (r.revision !== rev) throw fail('no such revision of ' + name + ': ' + rev);
+  return r;
+};
+
+/* Check a precondition: opts.ifMatch (revision) or opts.ifNoneMatch === '*'. */
+Store.prototype.checkPrecondition = function (name, opts) { return K.checkPrecondition(this, name, opts); };
 
 Store.prototype.exists = function (name) { return fs.existsSync(this.resolve(name)); };
 
@@ -98,7 +94,7 @@ Store.prototype.read = function (name) {
  * a failed one returns { ok:false, conflict:true, revision } and writes nothing. */
 Store.prototype.write = function (name, doc, opts) {
   var full = this.resolve(name);
-  var res = Core.loadDoc(doc);
+  var res = K.loadDoc(doc);
   if (!res.ok) return { ok: false, errors: res.errors, warnings: res.warnings };
   var pre = this.checkPrecondition(name, opts);
   if (pre) return pre;
@@ -121,28 +117,8 @@ Store.prototype.remove = function (name, opts) {
   return { ok: true };
 };
 
-function stats(res) {
-  return {
-    nodes: res.model.nodes.length, steps: res.model.steps.length,
-    beats: res.model.beats.length, groups: res.model.groups.length
-  };
-}
-
-function validate(doc) {
-  var res = Core.loadDoc(doc);
-  return { ok: res.ok, errors: res.errors, warnings: res.warnings, stats: res.ok ? stats(res) : null };
-}
-
 /* Load, apply one operation, validate, write only if valid. */
-Store.prototype.edit = function (name, op, args, opts) {
-  if (!ops[op]) throw fail('unknown operation ' + op);
-  var doc = this.read(name);
-  ops[op](doc, args || {});
-  var r = this.write(name, doc, opts);
-  if (!r.ok) r.note = 'Change rejected; the file was not modified.';
-  if (r.conflict) r.error = 'conflict: the flow changed since revision ' + (opts && opts.ifMatch) + '; read it again.';
-  return r;
-};
+Store.prototype.edit = function (name, op, args, opts) { return K.edit(this, name, op, args, opts); };
 
 /* Choose the backend from environment variables (see docs/features/sqlite-storage.md):
  * FLOW_STORE=sqlite (default) | files, FLOW_DIR, FLOW_DB, FLOW_IMPORT=0 to skip the first-start import. */

@@ -11,7 +11,7 @@ Flows can be written by agents through MCP and served read-only by nginx, but th
 ## Decisions (confirmed by Daniel, 2026-11-07)
 1. **Backend**: a folder of `*.flow.json` files, the same `FLOW_DIR` the MCP server and Docker mount already use. The Flow store stays behind its existing interface (`list`, `read`, `write`, `remove`), so a database could replace it later without touching callers.
 2. **Users and auth**: single user or trusted network. No accounts. The optional `MCP_TOKEN` bearer token stays and now also guards writes through the HTTP API.
-3. **Versioning**: none. Saves overwrite the file. Git on the folder is the user's choice and works without any support.
+3. **Versioning**: every save creates a Revision and keeps the newest 50 revisions per flow in SQLite. Saves use an optimistic check when a Revision is supplied.
 4. **Browser UX**: the viewer lists the server's Flows and loads one by name; the editor saves back to the server. "Open file..." and a new "Download" remain as fallbacks, and the viewer still works with no server API (read-only).
 5. **Write path**: one small HTTP API in the Flow Library, served by the existing MCP server process. nginx proxies `/api/` to it. MCP tools and the browser share one write path and one validation.
 6. **Sharing**: a link `?flow=<name>` plus the existing standalone bundle.
@@ -28,7 +28,7 @@ Concurrency (default accepted): last write wins, softened by an optimistic check
 - Accounts, roles, per-user folders, sharing permissions.
 - Version history or restore.
 - Subfolders or tags. Names stay flat (`orders.flow.json`).
-- Real-time collaboration or push updates (polling with `?watch` stays).
+- Real-time collaboration is out of scope, but stored-flow watch uses Server-Sent Events with polling fallback.
 - Changing the format `flow-animator/1`.
 
 ## Behaviour
@@ -47,7 +47,11 @@ Served by `mcp-server.js --http` on the same port (8081), next to `/mcp` and `/h
 | `GET /api/flows` | `{ "flows": [{ file, title, nodes, steps, revision, modifiedAt }] }`. Reuses `Store.list()` plus revision and mtime. |
 | `GET /api/flows/:name` | The Flow JSON. Headers `ETag`, `Cache-Control: no-store`. Honors `If-None-Match` (304). 404 if missing. |
 | `PUT /api/flows/:name` | Body is the whole Flow. Validated by Flow Modeling; invalid means `422 { errors, warnings }` and the file is untouched. Success: `200` (or `201` if new) with `{ ok, revision, warnings, stats }` and the new `ETag`. |
+| `PATCH /api/flows/:name` | Body is `{ "op": "...", "args": { ... } }`; applies one Edit, validates it, and returns the new Revision. It accepts the same `If-Match` precondition. |
 | `DELETE /api/flows/:name` | `204`. Requires the same precondition as PUT. |
+| `GET /api/flows/:name/revisions` | Lists the newest 50 saved revisions for the Flow. |
+| `GET /api/flows/:name?revision=<revision>` | Reads a historical revision instead of the current body. |
+| `GET /api/flows/:name/events` | Opens an SSE stream. A save sends `event: revision` with `{ "revision": "<revision>", "deleted": false }`; deletion sends `{ "revision": "<last revision>", "deleted": true }`. The server sends `: ping` every 25 seconds and performs a 2-second cross-process check. |
 
 Preconditions on `PUT` and `DELETE`:
 - `If-Match: "<revision>"` is how an editor says "I loaded this revision". If the file changed since, the answer is `412 { error: "conflict", revision: "<current>" }` and nothing is written.
@@ -60,7 +64,7 @@ MCP stays as it is. Optionally `create_flow` and the edit Tools accept `expected
 
 ### Viewer (Playback)
 - **Flow picker**: a dropdown or list of stored Flows (title, file, counts), filled from `GET /api/flows`. If that is unavailable it falls back to the nginx JSON listing at `/flows/`, and if that fails too the picker is hidden.
-- **Deep link**: `?flow=orders.flow.json` loads through the API (or `/flows/<name>` as fallback) and keeps the `?watch` behaviour (using `If-None-Match` so unchanged Flows cost a 304). The existing `?src=<url>` stays for arbitrary URLs.
+- **Deep link**: `?flow=orders.flow.json` loads through the API (or `/flows/<name>` as fallback) and keeps the `?watch` behaviour (SSE first, polling fallback; using `If-None-Match` so unchanged Flows cost a 304). The existing `?src=<url>` stays for arbitrary URLs.
 - **Source line** shows the name and revision.
 - **Open file...**, drag and drop, paste: unchanged, and are *local* Flows with no server name.
 - **Download**: saves the current Flow as `<name>.flow.json`. Works with no server.
@@ -79,9 +83,10 @@ The editor holds a *Draft* plus the *revision* it was loaded from, and talks to 
 ```
 FlowGateway.available()                       -> Promise<boolean>
 FlowGateway.list()                            -> Promise<[{file,title,nodes,steps,revision,modifiedAt}]>
-FlowGateway.load(name)                        -> Promise<{doc, revision}>
+FlowGateway.load(name, {revision})             -> Promise<{doc, revision}>
 FlowGateway.save(name, doc, {ifMatch|create}) -> Promise<{ok:true,revision,warnings} | {ok:false,kind:'invalid'|'conflict'|'unauthorized'|'unavailable', errors?, revision?}>
 FlowGateway.remove(name, {ifMatch})           -> Promise<{ok}|{ok:false,kind}>
+FlowGateway.watch(name, onEvent, {known})     -> unsubscribe function
 ```
 It never validates Flows itself: it relies on Flow Modeling in the browser (`flow-core.js`) for instant feedback and on the server for the final word. It is the only place in Playback that knows URLs and status codes (anti-corruption layer towards the Flow Library's published HTTP API).
 

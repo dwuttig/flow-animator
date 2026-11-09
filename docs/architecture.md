@@ -11,10 +11,10 @@ A person or AI agent describes a system as a **Flow** (Nodes, Groups, ordered St
 
 | Context | Type | Responsibility | Today's code |
 |---|---|---|---|
-| **Flow Modeling** | Core | What a valid Flow is: parse, validate, normalize, derive Beats. Owns the format `flow-animator/1` and `flow.schema.json`. | `parse`, `validate`, `normalize`, `buildBeats` in `flow-core.js` |
-| **Layout** | Supporting | Turn a normalized Flow into Geometry (positions, routed Edges, bounds). Pure, deterministic. | `layout`, `route`, helpers in `flow-core.js` |
-| **Playback** | Supporting | Show a Flow as an animation and handle user controls. Browser only. | `index.html` |
-| **Flow Library** | Supporting | Persist Flows (SQLite database, or a directory) and apply Edits safely; expose them over MCP (stdio, HTTP). | `flow-store.js`, `mcp-server.js` |
+| **Flow Modeling** | Core | What a valid Flow is: parse, validate, normalize, derive Beats. Owns the format `flow-animator/1` and `flow.schema.json`. | `src/flow-modeling/flow-modeling.js` |
+| **Layout** | Supporting | Turn a normalized Flow into Geometry (positions, routed Edges, bounds). Pure, deterministic. | `src/layout/layout.js` |
+| **Playback** | Supporting | Show a Flow as an animation and handle user controls. Browser only. | `index.html`, `src/playback/` |
+| **Flow Library** | Supporting | Persist Flows (SQLite database, or a directory) and apply Edits safely; expose them over MCP (stdio, HTTP). | `src/flow-library/`, `flow-store.js`, `mcp-server.js` |
 | **Distribution** | Generic | Package and host: standalone bundle, CLI validator, Docker/nginx. | `build-standalone.js`, `validate.js`, `Dockerfile`, `docker/`, `docker-compose.yml` |
 
 ### Context map
@@ -37,12 +37,12 @@ Dependency rule: contexts depend only on another context's public API (its `inde
 ## Vertical slices
 Inside a context, code is organised by use case (slice), not by technical layer. A slice holds everything for one capability: its input handling, domain logic, and tests. Shared kernel inside a context is allowed only for genuinely shared domain types.
 
-Examples:
-- Flow Modeling: `parse-flow`, `validate-flow`, `derive-beats`
-- Layout: `layout-flow`, `route-edges`
-- Playback: `load-flow`, `play-flow`, `scrub-timeline`, `render-diagram`, `edit-flow`, `flow-menu`, `export-flow`, `mcp-config`
-- Flow Library: `sqlite-store`, `list-flows`, `read-flow`, `create-flow`, `add-node`, `add-step`, `move-step`... `flow-revision`, `flow-http-api` (list, read, save, delete over HTTP with revision checks), plus `mcp-transport`
-- Distribution: `bundle-standalone`, `validate-cli`, `docker-image`
+Slices in today's code:
+- Flow Modeling: `src/flow-modeling/flow-modeling.js` (parse, validate, normalize, beats, registries and migrations)
+- Layout: `src/layout/layout.js`
+- Playback: `src/playback/play-flow/`, `render-diagram/`, `view-options/`, `dialogs/`, `flow-gateway/`, `save-flow/`, `export-flow/`, `flow-menu/`, `edit-flow/`
+- Flow Library: `src/flow-library/apply-edit/`, `flow-name/`, `store-core/`, `sqlite-store/`, plus `flow-store.js` and `mcp-server.js`
+- Distribution: `build-standalone.js`, `validate.js`, `Dockerfile`, `docker/`
 
 Layering within a slice stays light: domain logic must not import transport (HTTP, stdio, DOM, fs). I/O sits at the slice edge.
 
@@ -50,22 +50,20 @@ Layering within a slice stays light: domain logic must not import transport (HTT
 ```
 src/
   flow-modeling/
-    index.js                  public API: parse, validate, normalize, buildBeats
-    parse-flow/  validate-flow/  derive-beats/
+    flow-modeling.js          public API: parse, validate, normalize, buildBeats
   layout/
-    index.js                  public API: layout
-    layout-flow/  route-edges/
+    layout.js                 public API: layout
   playback/                   browser only
     index.js
     load-flow/  play-flow/  scrub-timeline/  render-diagram/
   flow-library/               Node only
-    index.js
-    flow-store/  edit-flow/<edit>/  mcp-transport/
+    apply-edit/apply-edit.js
+    flow-name/flow-name.js  store-core/store-core.js  sqlite-store/sqlite-store.js
   distribution/
     bundle-standalone/  validate-cli/
 index.html  Dockerfile  docker-compose.yml  docker/  examples/  test/
 ```
-- Plain script files, no bundler. Modeling and Layout keep the UMD wrapper so a browser `<script>` tag and Node `require` both work; `index.html` lists the script tags in dependency order.
+- Plain script files, no bundler. Modeling and Layout keep the UMD wrapper so a browser `<script>` tag and Node `require` both work; `index.html` lists the script tags in dependency order: modeling → layout → flow-core → library → playback. The standalone builder and browser export read that same script manifest.
 - Existing entry points (`flow-core.js`, `validate.js`, `build-standalone.js`, `mcp-server.js`, `index.html`) stay as thin facades while the migration lands, so Docker, README and clients keep working. See [features/ddd-restructure.md](features/ddd-restructure.md) and [plans/ddd-restructure.md](plans/ddd-restructure.md).
 - Tests live next to the slice (`*.test.js`, `node --test`) plus cross-context contract tests in `test/`.
 
@@ -76,3 +74,5 @@ index.html  Dockerfile  docker-compose.yml  docker/  examples/  test/
 4. Format changes belong to Flow Modeling and bump or extend `flow-animator/1` deliberately; `flow.schema.json`, validator and README format section change together.
 5. Add behaviour as a new slice rather than extending a shared helper.
 6. Cross-context calls go through public APIs only.
+
+The editor host contract includes `host.show(text, name, loadDocResult)`, `host.download(text, title)`, and `host.confirm(message)`, which may return a boolean or Promise. Layout emits pre-trimmed edge `d` paths (3 px at the start and 11 px at the end) and `edge.length`. The model exposes `stepBeat` and `nodeById`; Modeling owns the `KIND_INFO` registry and its `MIGRATIONS`/`migrate` hook, while Layout owns `SHAPE_METRICS`.

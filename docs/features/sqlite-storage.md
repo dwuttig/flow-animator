@@ -14,6 +14,7 @@ Flows live as loose `*.flow.json` files in a folder. That works for one person, 
 3. **SQLite is the default**, the folder store stays selectable with `FLOW_STORE=files`.
 4. **Revision is identical in both backends**: SHA-256 of the stored text (`JSON.stringify(doc, null, 2) + "\n"`), first 16 hex chars. Importing a folder therefore keeps Revisions of files written by this server.
 5. **One-time import**: when the database is created empty and `FLOW_DIR` holds `*.flow.json` files, they are imported once (never overwriting, invalid files skipped with a message). It is recorded in the database, so a flow deleted later does not come back. `FLOW_IMPORT=0` disables it; `node mcp-server.js --import [dir]` imports on demand (existing names are kept).
+6. **Revision history**: each flow keeps its newest 50 saved revisions in `flow_history`; deleting a flow deletes its history too.
 
 ## Flow names (follow-up)
 A Flow name is a bare unique name (`orders`): 1-100 letters, digits, dot, dash or underscore, starting with a letter or digit, not ending in `.json`, unique ignoring case. A trailing `.flow.json` is stripped everywhere (store, API, MCP, viewer), so old links and clients work. The folder store still keeps `orders.flow.json` on disk. A SQLite database with suffixed names is rebuilt once on open (clashing names get `-2`).
@@ -37,7 +38,7 @@ Environment of `mcp-server.js`:
 | `FLOW_DIR` | `./flows` | folder (files), and import source (sqlite) |
 | `FLOW_IMPORT` | on | `0` disables the first-start import |
 
-Table `flows(name PRIMARY KEY, body, revision, modified_at)`; write, delete and precondition check run in one `BEGIN IMMEDIATE` transaction, so a Conflict cannot slip between check and write. WAL mode and a busy timeout let the stdio and HTTP servers share one file.
+Tables are `flows(name PRIMARY KEY, body, revision, modified_at)` and `flow_history(name, revision, body, title, nodes, steps, modified_at)`. History is trimmed to the newest 50 revisions per flow and is deleted with its flow. The list query reads the title and nodes/steps counts from stored list columns rather than parsing every body. Prepared statements are cached per SQLite store. Write, delete and precondition check run in one `BEGIN IMMEDIATE` transaction, so a Conflict cannot slip between check and write. WAL mode and a busy timeout let the stdio and HTTP servers share one file.
 
 Docker: the `mcp` service keeps `./flows:/flows` (import source, or the store with `FLOW_STORE=files`) and adds a named volume `flow-data:/data` for the database. The viewer's static `/flows/` listing shows the folder only; with SQLite the viewer uses the Flow API.
 
