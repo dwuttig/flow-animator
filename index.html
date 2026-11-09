@@ -227,26 +227,26 @@ summary::-webkit-details-marker{display:none}
           <div class="vpsec">
             <h3>Playback</h3>
             <div class="vpbtns">
-              <button id="restart" type="button">Restart</button>
-              <button id="prev" type="button">Prev</button>
-              <button id="play" type="button">Pause</button>
-              <button id="next" type="button">Next</button>
+              <button id="restart" type="button" title="Go back to the first step">Restart</button>
+              <button id="prev" type="button" title="Show the previous step">Prev</button>
+              <button id="play" type="button" title="Pause or resume the animation">Pause</button>
+              <button id="next" type="button" title="Show the next step">Next</button>
             </div>
-            <div class="vpline"><input id="scrub" type="range" min="0" max="0" value="0" aria-label="Step"><output id="count">1 / 1</output></div>
-            <div class="vpfield"><label for="spd">Speed</label><input id="spd" type="range" min="0.5" max="3" step="0.5" value="1"><output id="spdl">1x</output></div>
+            <div class="vpline" title="Jump to any step"><input id="scrub" type="range" min="0" max="0" value="0" aria-label="Step"><output id="count">1 / 1</output></div>
+            <div class="vpfield" title="How fast the animation advances from step to step"><label for="spd">Speed</label><input id="spd" type="range" min="0.5" max="3" step="0.5" value="1"><output id="spdl">1x</output></div>
             <div class="vpchecks">
-              <label><input id="loop" type="checkbox" checked> Loop</label>
-              <label><input id="trail" type="checkbox" checked> Trail</label>
+              <label title="Start again from step 1 after the last step"><input id="loop" type="checkbox" checked> Loop</label>
+              <label title="Keep already played steps highlighted on the diagram"><input id="trail" type="checkbox" checked> Trail</label>
             </div>
           </div>
           <div class="vpsec">
             <h3>Display</h3>
-            <div class="vpfield"><label for="optDir">Orientation</label><select id="optDir"><option value="LR">Horizontal</option><option value="TB">Vertical</option></select></div>
-            <div class="vpfield"><label for="optConn">Connections</label><select id="optConn"><option value="auto">Auto</option><option value="bezier">Bezier</option><option value="linear">Linear</option><option value="orthogonal">Orthogonal</option></select></div>
-            <div class="vpfield"><label for="optStep">Step style</label><select id="optStep"><option value="kind">By kind</option><option value="solid">Solid</option><option value="dashed">Dashed</option><option value="dotted">Dotted</option></select></div>
-            <div class="vpchecks"><label><input id="optLabels" type="checkbox" checked> Labels</label><label title="Reorder nodes and place step labels to reduce overlaps and crossings"><input id="optOpt" type="checkbox"> Optimize layout</label></div>
-            <div class="vpfield"><label for="optSpace">Node spacing</label><input id="optSpace" type="range" min="0.5" max="3" step="0.1" value="1"><output id="optSpaceL">1.0x</output></div>
-            <div class="vpfield"><label for="optThick">Thickness</label><input id="optThick" type="range" min="1" max="6" step="0.5" value="1.5"><output id="optThickL">1.5</output></div>
+            <div class="vpfield" title="Lay the diagram out left to right (horizontal) or top to bottom (vertical)"><label for="optDir">Orientation</label><select id="optDir"><option value="LR">Horizontal</option><option value="TB">Vertical</option></select></div>
+            <div class="vpfield" title="How lines between nodes are drawn: Auto picks per line, or force Bezier curves, straight Linear lines or right-angled Orthogonal lines"><label for="optConn">Connections</label><select id="optConn"><option value="auto">Auto</option><option value="bezier">Bezier</option><option value="linear">Linear</option><option value="orthogonal">Orthogonal</option></select></div>
+            <div class="vpfield" title="Line style of the step arrows: By kind uses each step's own kind, or force solid, dashed or dotted"><label for="optStep">Step style</label><select id="optStep"><option value="kind">By kind</option><option value="solid">Solid</option><option value="dashed">Dashed</option><option value="dotted">Dotted</option></select></div>
+            <div class="vpchecks"><label title="Show the step number and text next to each arrow"><input id="optLabels" type="checkbox" checked> Labels</label><label title="Reorder nodes and place step labels to reduce overlaps and crossings"><input id="optOpt" type="checkbox"> Optimize layout</label></div>
+            <div class="vpfield" title="Distance between nodes, from 0.5x (tight) to 3x (wide). Node sizes stay the same"><label for="optSpace">Node spacing</label><input id="optSpace" type="range" min="0.5" max="3" step="0.1" value="1"><output id="optSpaceL">1.0x</output></div>
+            <div class="vpfield" title="Line thickness of the connections"><label for="optThick">Thickness</label><input id="optThick" type="range" min="1" max="6" step="0.5" value="1.5"><output id="optThickL">1.5</output></div>
           </div>
           <div class="vpsec">
             <h3>Zoom and view</h3>
@@ -255,7 +255,7 @@ summary::-webkit-details-marker{display:none}
               <button id="zout" type="button" title="Zoom out" aria-label="Zoom out">&minus;</button>
               <button id="zreset" type="button" title="Reset zoom and position">Reset</button>
             </div>
-            <div class="vphint">Ctrl + wheel: zoom. Ctrl + drag: pan. Double-click: reset.</div>
+            <div class="vphint" title="Mouse gestures on the diagram">Ctrl + wheel: zoom. Ctrl + drag: pan. Double-click: reset.</div>
             <div class="vpbtns" style="--cols:2">
               <button id="maxBtn" type="button" aria-pressed="false" title="Maximize the visualization (M)">Maximize</button>
               <button id="fsBtn" type="button" aria-pressed="false" title="Fullscreen (F)">Fullscreen</button>
