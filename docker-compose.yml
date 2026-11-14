@@ -5,9 +5,9 @@ services:
       target: viewer
     image: flow-animator:latest
     ports:
-      - "8080:8080"
+      - "3030:8080"
     volumes:
-      # Your own flows, served at http://localhost:8080/flows/<name>.flow.json
+      # Your own flows, served at http://localhost:3030/flows/<name>.flow.json
       - ./flows:/usr/share/nginx/html/flows
     restart: unless-stopped
 

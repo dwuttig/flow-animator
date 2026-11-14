@@ -28,9 +28,10 @@ The MP4 export (`record-video`) puts a Flow into a deck, but as pixels: nobody c
 - Each click = one Beat. For every Step in the Beat, together:
   1. a Packet (small circle) appears at the Edge start and moves along the Edge (motion path, about 1.3 s, eased);
   2. a Trail copy of the Edge (highlight style) fades in and stays for the rest of the slide show;
-  3. the Step label appears near the Edge's midpoint once the Packet arrives and stays;
+  3. the Step label appears beside the Edge as the Packet starts moving, and stays;
   4. the Packet fades out on arrival.
 - Before the first click the slide shows the static diagram only (no Trails, no Step labels).
+- The viewer export also follows the line thickness, step style (by kind, solid, dashed, dotted), labels on/off and the viewer's own Step label placement. MCP uses the defaults (1.5 px, by kind, labels on, simple midpoint placement).
 - Orientation, connection style, node spacing and optimize-layout follow the viewer settings; MCP uses the Flow's own layout settings.
 - File name: Flow title, like the other exports (`order-submission.pptx`).
 - MCP `export_pptx { file, theme? }` returns the file as an embedded resource (base64 `blob`, mimeType `application/vnd.openxmlformats-officedocument.presentationml.presentation`). Works over stdio and HTTP.

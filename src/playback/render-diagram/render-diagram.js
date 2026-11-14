@@ -8,6 +8,7 @@
  *   d.select(sel)                     editor selection {nodes, edges, glow:{nodes, edges}}; pans to new glow
  *   d.look({ thick, step, labels })   line thickness, step style and step labels on/off
  *   d.zoom(factor) d.fit() d.panTo(gl) d.view()
+ *   d.labelBoxes()                    step label boxes by step index: [{cx, cy, w, h} | null] in geometry px (null: hidden)
  *   d.svgText(css)                    standalone SVG markup of the diagram
  * RenderDiagram.SHAPES: shape name -> draw(g, rect, el, metrics) -> label box {cx, cy, avail}; a new shape is one entry.
  * RenderDiagram.paletteCss() -> CSS for the .c-<color> classes (light + dark).
@@ -77,7 +78,7 @@
   function create(doc, o) {
     var svg = o.svg, C = o.core, KIND = (C && C.KIND_INFO) || {}, METRICS = (C && C.SHAPE_METRICS) || {};
     var model = null, geo = null, vp = null, gP = null;
-    var nodeEls = {}, edgeEls = {}, lens = {}, packets = [], liEls = [], lblEls = [], sel = null, glowKey = '';
+    var nodeEls = {}, edgeEls = {}, lens = {}, packets = [], liEls = [], lblEls = [], lblBoxes = [], sel = null, glowKey = '';
     var view = { k: 1, x: 0, y: 0 };
 
     function el(tag, attrs, parent) {
@@ -159,7 +160,7 @@
     /* Step labels: one per step, beside its connection line, placed greedily so they avoid nodes and each other.
        geo.optimized widens the search and falls back to the least overlapping spot. */
     function placeLabels(g) {
-      lblEls = [];
+      lblEls = []; lblBoxes = [];
       var opt = !!geo.optimized, placed = [];
       var tries = opt ? [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8, 0.35, 0.65, 0.25, 0.75, 0.15, 0.85] : [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8];
       var cands = opt ? [[1, 1], [-1, 1], [0, 0], [1, 2], [-1, 2]] : [[1, 1], [-1, 1], [0, 0]];
@@ -180,7 +181,7 @@
         var t = el('text', {}, grp);
         t.textContent = txt;
         el('title', {}, grp).textContent = s.label;
-        lblEls[si] = grp;
+        lblEls[si] = grp; lblBoxes[si] = null;
         if (!path || !len) { grp.style.display = 'none'; return; }
         var w = txt.length * 6.6, hgt = 14;
         try { var bb = t.getBBox(); if (bb.width > 0) { w = bb.width; hgt = bb.height; } } catch (e) {}
@@ -202,6 +203,7 @@
         if (!best && least) best = least;
         if (!best) { var m = path.getPointAtLength(len / 2); best = { x0: m.x - w / 2, y0: m.y - hgt / 2 - 8, x1: m.x + w / 2, y1: m.y + hgt / 2 - 8, cx: m.x, cy: m.y - 8 }; }
         placed.push(best);
+        lblBoxes[si] = { cx: best.cx, cy: best.cy, w: w, h: hgt };
         t.setAttribute('x', best.cx.toFixed(1)); t.setAttribute('y', best.cy.toFixed(1));
       });
     }
@@ -369,6 +371,7 @@
         });
         followBeat(beat);
       },
+      labelBoxes: function () { return lblBoxes.slice(); },
       select: function (s) { sel = s; if (model) applySel(); },
       look: function (v) {
         svg.style.setProperty('--ew', String(v.thick));

@@ -3,7 +3,8 @@
  * Zero dependencies, pure, works in the browser and in Node. The animation is native PowerPoint
  * animation: one click plays one Beat (Packets move along the Edges, Trails and Step labels stay).
  *
- *   ExportPptx.build({ model, geo, beats, theme, title }) -> Uint8Array   theme 'light' | 'dark'
+ *   ExportPptx.build({ model, geo, beats, theme, title, view }) -> Uint8Array   theme 'light' | 'dark'
+ *     view (optional, the viewer's settings): { thick px (1.5), step 'kind' | 'solid' | 'dashed' | 'dotted', labels (true), labelBoxes [{cx, cy, w, h} | null] by step index }
  *   ExportPptx.fromFlow(doc, { theme, layout })          -> Uint8Array   migrate, validate, normalize, layout + build
  *   ExportPptx.zip([{ name, data: string | Uint8Array }]) -> Uint8Array  STORE (no compression)
  *   ExportPptx.crc32(Uint8Array) -> number
@@ -192,7 +193,9 @@
 
   function sizeOf(px, s) { return Math.max(500, Math.round(px * s / 127)); }
 
-  function buildSlide(model, geo, beats, th, title) {
+  function buildSlide(model, geo, beats, th, title, view) {
+    view = view || {};
+    var thick = view.thick > 0 ? +view.thick : 1.5, showLabels = view.labels !== false, boxes = view.labelBoxes || [], stepStyle = view.step;
     var margin = 300000, top = 900000, bottom = 250000;
     var aw = SLIDE_W - 2 * margin, ah = SLIDE_H - top - bottom;
     var s = Math.min(aw / geo.width, ah / geo.height, 15240);
@@ -238,9 +241,10 @@
         cmds += '<a:' + tag + '>' + sg.pts.map(pt).join('') + '</a:' + tag + '>';
       });
       var geom = '<a:custGeom><a:avLst/><a:gdLst/><a:ahLst/><a:cxnLst/><a:rect l="0" t="0" r="r" b="b"/><a:pathLst><a:path w="' + ew + '" h="' + eh + '" fill="none">' + cmds + '</a:path></a:pathLst></a:custGeom>';
-      var dash = e.kind === 'response' ? 'dash' : e.kind === 'async' || e.kind === 'event' ? 'sysDot' : null, round = dash === 'sysDot';
+      var dash = stepStyle === 'solid' ? null : stepStyle === 'dashed' ? 'dash' : stepStyle === 'dotted' ? 'sysDot'
+        : e.kind === 'response' ? 'dash' : e.kind === 'async' || e.kind === 'event' ? 'sysDot' : null, round = dash === 'sysDot';
       edgeKey[e.id] = { path: path, e: e, ex: ex, ey: ey, ew: ew, eh: eh, geom: geom, dash: dash, round: round };
-      edgesXml += shape(id(), 'Edge: ' + e.id, { x: ex, y: ey, w: ew, h: eh, geom: geom, line: line(Math.max(1, D(1.5)), th.edge, { dash: dash, round: round, arrow: true }) });
+      edgesXml += shape(id(), 'Edge: ' + e.id, { x: ex, y: ey, w: ew, h: eh, geom: geom, line: line(Math.max(1, D(thick)), th.edge, { dash: dash, round: round, arrow: true }) });
     });
 
     model.nodes.forEach(function (n) {
@@ -270,16 +274,18 @@
       if (!ek) return;
       var rec = { trail: id() }, n = shared[ek.e.id] = (shared[ek.e.id] || 0) + 1;
       perStep[si] = rec;
-      trailsXml += shape(rec.trail, 'Trail: ' + (si + 1), { x: ek.ex, y: ek.ey, w: ek.ew, h: ek.eh, geom: ek.geom, line: line(Math.max(1, D(1.5 * 1.8)), HOT, { dash: ek.dash, round: ek.round, arrow: true }) });
+      trailsXml += shape(rec.trail, 'Trail: ' + (si + 1), { x: ek.ex, y: ek.ey, w: ek.ew, h: ek.eh, geom: ek.geom, line: line(Math.max(1, D(thick * 1.8)), HOT, { dash: ek.dash, round: ek.round, arrow: true }) });
       animated.push(rec.trail);
 
-      if (st.label) {
+      if (st.label && showLabels) {
         var txt = st.label.length > 26 ? st.label.slice(0, 25) + '\u2026' : st.label;
         var fracs = [0.5, 0.35, 0.65, 0.25, 0.75], m = pointAt(ek.path, fracs[(n - 1) % fracs.length]);
         var w = txt.length * 6.6 + 8, h = 16, nx = -m.ty, ny = m.tx;
         if (ny > 0 && !edgeKey[st.to + '>' + st.from]) { nx = -nx; ny = -ny; }
         var ext = Math.abs(nx) * w / 2 + Math.abs(ny) * h / 2 + 3;
         var cx = Math.min(geo.width - w / 2 - 2, Math.max(w / 2 + 2, m.x + nx * ext)), cy = Math.min(geo.height - h / 2 - 2, Math.max(h / 2 + 2, m.y + ny * ext));
+        var bx = boxes[si];
+        if (bx) { cx = bx.cx; cy = bx.cy; w = bx.w; h = bx.h; }
         rec.label = id();
         labelsXml += shape(rec.label, 'Step label: ' + (si + 1), {
           x: X(cx - w / 2), y: Y(cy - h / 2), w: D(w), h: D(h), txBox: true, geom: prst('rect'), fill: solid(th.bg, 80000),
@@ -360,15 +366,14 @@
       clicks += '<p:par><p:cTn id="' + cid + '" fill="hold"><p:stCondLst><p:cond delay="indefinite"/></p:stCondLst><p:childTnLst>' +
         block(0, function () {
           return steps.map(function (r, i) {
-            return appear(r.packet, i === 0 ? 'clickEffect' : 'withEffect') + motion(r.packet, r.path, 'withEffect') + fade(r.trail, 'withEffect', false);
+            return appear(r.packet, i === 0 ? 'clickEffect' : 'withEffect') + motion(r.packet, r.path, 'withEffect') + fade(r.trail, 'withEffect', false) + (r.label ? appear(r.label, 'withEffect') : '');
           }).join('');
         }) +
         block(MOVE_MS, function () {
           var first = true;
           return steps.map(function (r) {
-            var x = '';
-            if (r.label) { x += appear(r.label, first ? 'afterEffect' : 'withEffect'); first = false; }
-            x += fade(r.packet, first ? 'afterEffect' : 'withEffect', true); first = false;
+            var x = fade(r.packet, first ? 'afterEffect' : 'withEffect', true);
+            first = false;
             return x;
           }).join('');
         }) +
@@ -487,7 +492,7 @@
       { name: 'ppt/slideMasters/_rels/slideMaster1.xml.rels', data: rels([['rId1', REL + 'slideLayout', '../slideLayouts/slideLayout1.xml'], ['rId2', REL + 'theme', '../theme/theme1.xml']]) },
       { name: 'ppt/slideLayouts/slideLayout1.xml', data: layoutPart() },
       { name: 'ppt/slideLayouts/_rels/slideLayout1.xml.rels', data: rels([['rId1', REL + 'slideMaster', '../slideMasters/slideMaster1.xml']]) },
-      { name: 'ppt/slides/slide1.xml', data: buildSlide(model, o.geo, beats, th, title) },
+      { name: 'ppt/slides/slide1.xml', data: buildSlide(model, o.geo, beats, th, title, o.view) },
       { name: 'ppt/slides/_rels/slide1.xml.rels', data: rels([['rId1', REL + 'slideLayout', '../slideLayouts/slideLayout1.xml']]) }
     ]);
   }

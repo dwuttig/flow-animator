@@ -237,7 +237,8 @@
       if (!S.model) return;
       var dark = !!(window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
       try {
-        var bytes = window.ExportPptx.build({ model: S.model, geo: S.geo, beats: S.model.beats, theme: dark ? 'dark' : 'light', title: S.model.title });
+        var bytes = window.ExportPptx.build({ model: S.model, geo: S.geo, beats: S.model.beats, theme: dark ? 'dark' : 'light', title: S.model.title,
+          view: { thick: V.thick, step: V.step, labels: V.labels !== false, labelBoxes: diagram.labelBoxes() } });
         window.ExportFlow.download(doc, exportName('pptx'), window.ExportPptx.MIME, bytes);
       } catch (e) {
         notify('Could not build the PowerPoint file: ' + (e && e.message ? e.message : e));

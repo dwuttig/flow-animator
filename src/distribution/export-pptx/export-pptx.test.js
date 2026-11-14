@@ -299,6 +299,62 @@ test('build: control characters that XML forbids are dropped', function () {
   assert.ok(xml.indexOf('AB') > 0 && xml.indexOf('\u0001') < 0);
 });
 
+/* ---------- view settings ---------- */
+
+function fitOf(geo) {
+  var s = Math.min(11592000 / geo.width, 5708000 / geo.height, 15240);
+  return { s: s, ox: (12192000 - geo.width * s) / 2, oy: 900000 + (5708000 - geo.height * s) / 2 };
+}
+function viewSlide(view) {
+  var p = prepare(SMALL), bytes = X.build({ model: p.model, geo: p.geo, beats: p.beats, theme: 'light', view: view });
+  return { xml: unzip(bytes).files['ppt/slides/slide1.xml'].text, geo: p.geo };
+}
+function shapeXml(xml, name) {
+  var at = xml.indexOf('name="' + name + '"'), start = xml.lastIndexOf('<p:sp>', at);
+  return xml.slice(start, xml.indexOf('</p:sp>', at) + 7);
+}
+
+test('view: a given label box is where the Step label lands, centred with its size', function () {
+  var boxes = [];
+  boxes[1] = { cx: 100, cy: 50, w: 60, h: 20 };
+  var r = viewSlide({ labelBoxes: boxes }), f = fitOf(r.geo);
+  var lbl = shapeXml(r.xml, 'Step label: 2');
+  var expect = '<a:off x="' + Math.round(f.ox + 70 * f.s) + '" y="' + Math.round(f.oy + 40 * f.s) + '"/><a:ext cx="' + Math.round(60 * f.s) + '" cy="' + Math.round(20 * f.s) + '"/>';
+  assert.ok(lbl.indexOf(expect) > 0, expect + ' in ' + lbl.slice(0, 300));
+  assert.notStrictEqual(shapeXml(r.xml, 'Step label: 1'), shapeXml(viewSlide({}).xml, 'Step label: 2'));
+});
+
+test('view: thick sets the Edge width and 1.8 times that for Trails', function () {
+  var r = viewSlide({ thick: 3 }), s = fitOf(r.geo).s;
+  assert.ok(shapeXml(r.xml, 'Edge: a&gt;b').indexOf('<a:ln w="' + Math.round(3 * s) + '"') > 0);
+  assert.ok(shapeXml(r.xml, 'Trail: 1').indexOf('<a:ln w="' + Math.round(5.4 * s) + '"') > 0);
+  var d = viewSlide({}), ds = fitOf(d.geo).s;
+  assert.ok(shapeXml(d.xml, 'Edge: a&gt;b').indexOf('<a:ln w="' + Math.round(1.5 * ds) + '"') > 0, 'default 1.5');
+});
+
+test('view: step style forces the line style of every Edge and Trail', function () {
+  var edgesAndTrails = function (xml) { return names(xml, 'Edge: ').concat(names(xml, 'Trail: ')).map(function (n) { return shapeXml(xml, n.name.replace(/>/g, '&gt;').replace(/ /g, ' ')); }); };
+  var dotted = edgesAndTrails(viewSlide({ step: 'dotted' }).xml);
+  assert.strictEqual(dotted.length, 10);
+  dotted.forEach(function (s) { assert.ok(s.indexOf('prstDash val="sysDot"') > 0 && s.indexOf('cap="rnd"') > 0); });
+  edgesAndTrails(viewSlide({ step: 'solid' }).xml).forEach(function (s) { assert.ok(s.indexOf('prstDash') < 0); });
+  edgesAndTrails(viewSlide({ step: 'dashed' }).xml).forEach(function (s) { assert.ok(s.indexOf('prstDash val="dash"') > 0 && s.indexOf('cap="rnd"') < 0); });
+  var kind = viewSlide({ step: 'kind' }).xml;
+  assert.ok(shapeXml(kind, 'Edge: b&gt;a').indexOf('prstDash val="dash"') > 0 && shapeXml(kind, 'Edge: a&gt;b').indexOf('prstDash') < 0);
+});
+
+test('view: labels false drops Step labels, their animations and build entries', function () {
+  var r = viewSlide({ labels: false });
+  checkXml(r.xml, 'slide');
+  assert.strictEqual(names(r.xml, 'Step label: ').length, 0);
+  assert.strictEqual(count(r.xml, 'presetID="1" presetClass="entr"'), 5, 'only Packets appear');
+  assert.strictEqual(count(r.xml, '<p:bldP '), 15, '5 Trails + 5 Packets build 0 + 5 Packets build 1');
+  assert.strictEqual(count(r.xml, '<p:cond delay="indefinite"/>'), 4);
+  assert.strictEqual(count(r.xml, 'nodeType="afterEffect"'), 4, 'each click still has its Packet exit after the move');
+  var cn = (r.xml.match(/<p:cTn id="(\d+)"/g) || []);
+  assert.strictEqual(new Set(cn).size, cn.length);
+});
+
 /* ---------- fromFlow ---------- */
 
 test('fromFlow builds the example Flow', function () {
@@ -311,7 +367,7 @@ test('fromFlow builds the example Flow', function () {
   assert.strictEqual(count(xml, '<p:cond delay="indefinite"/>'), model.beats.length);
   assert.ok(xml.indexOf(model.title.replace(/&/g, '&amp;')) > 0, 'title text');
   var out = path.join(os.tmpdir(), 'order-flow.pptx');
-  fs.writeFileSync(out, X.fromFlow(doc, { theme: 'light' }));
+  try { fs.writeFileSync(out, X.fromFlow(doc, { theme: 'light' })); } catch (e) { if (e.code !== 'EBUSY') throw e; }
   assert.ok(fs.statSync(out).size > 5000);
   console.log('# wrote ' + out);
 });
