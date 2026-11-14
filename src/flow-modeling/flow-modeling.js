@@ -66,7 +66,7 @@
 
   function parse(text) {
     if (typeof text !== 'string') return { doc: null, errors: [{ path: '$', message: 'input is not text' }] };
-    var t = text.replace(/^﻿/, '');
+    var t = text.replace(/^\uFEFF/, '');
     if (/^\s*```/.test(t)) {
       return { doc: null, errors: [{ path: '$', message: 'the file starts with a markdown code fence; it must contain raw JSON only' }] };
     }

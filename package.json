@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "flow-animator",
   "private": true,
   "version": "0.1.0",
@@ -9,9 +9,15 @@
   },
   "scripts": {
     "test": "node --test",
+    "lint": "eslint .",
     "validate": "node validate.js",
     "mcp": "node mcp-server.js",
     "mcp:http": "node mcp-server.js --http",
     "build:standalone": "node build-standalone.js"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
+    "globals": "^17.14.0"
   }
 }

@@ -1,0 +1,14 @@
+﻿{
+  "PostToolUse": [
+    {
+      "matcher": "edit|write",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "node scripts/lint-hook.js",
+          "timeout": 60
+        }
+      ]
+    }
+  ]
+}
