@@ -13,6 +13,7 @@ var ALLOWED = {
   'flow-modeling': [],
   'layout': ['src/flow-modeling/'],
   'flow-library': ['src/flow-modeling/', 'src/layout/', 'src/flow-library/', 'flow-core.js'],
+  'distribution': ['src/flow-modeling/', 'src/layout/', 'src/playback/render-diagram/', 'src/distribution/'],
   'playback': ['src/flow-modeling/', 'src/layout/', 'flow-core.js', 'src/flow-library/apply-edit/', 'src/flow-library/flow-name/', 'src/playback/']
 };
 

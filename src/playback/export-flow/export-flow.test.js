@@ -16,6 +16,7 @@ test('fileName slugs the title', function () {
   assert.strictEqual(X.fileName('Order Flow: v2!', 'json'), 'order-flow-v2.flow.json');
   assert.strictEqual(X.fileName('', 'html'), 'flow.html');
   assert.strictEqual(X.fileName('Order Flow', 'svg'), 'order-flow.svg');
+  assert.strictEqual(X.fileName('Order submission', 'pptx'), 'order-submission.pptx');
 });
 
 test('scriptsOf lists the page script tags in order and every one exists', function () {

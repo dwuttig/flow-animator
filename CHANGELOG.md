@@ -6,6 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Added
+- Flow menu > Export flow... > **PowerPoint slide (.pptx)** and MCP tool `export_pptx`: one native, editable slide whose click-driven animation plays the Flow Beat by Beat.
 - Viewer: **Ctrl + mouse wheel** zooms and **Ctrl + left-drag** pans the diagram; the plain wheel scrolls the page.
 - View panel: **Optimize layout** reorders nodes within their columns to reduce edge crossings and edges through nodes, and places step labels with less overlap; **Node spacing** (0.5x to 3x) scales the gaps between nodes. Both are viewer-only settings and are remembered.
 - Playback: **Download SVG** in the Flow menu (Export).

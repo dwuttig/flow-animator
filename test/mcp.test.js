@@ -65,6 +65,37 @@ test('stdio: initialize, list, create, edit, reject invalid', async function () 
   } finally { s.close(); }
 });
 
+test('stdio: export_pptx returns the flow as an embedded .pptx resource', async function () {
+  var dir = tmp(), s = session(dir);
+  try {
+    await s.call(rpc(1, 'initialize', { protocolVersion: '2025-03-26' }));
+    var tl = await s.call(rpc(2, 'tools/list'));
+    var tool = tl.result.tools.filter(function (t) { return t.name === 'export_pptx'; })[0];
+    assert.deepStrictEqual(tool.inputSchema.properties.theme.enum, ['light', 'dark']);
+    assert.deepStrictEqual(tool.inputSchema.required, ['file']);
+    await s.call(toolCall(3, 'create_flow', { file: 'deck', document: DOC }));
+
+    var r = await s.call(toolCall(4, 'export_pptx', { file: 'deck.flow.json' }));
+    assert.ok(!r.result.isError);
+    var res = r.result.content[0];
+    assert.strictEqual(res.type, 'resource');
+    assert.strictEqual(res.resource.uri, 'flow://deck.pptx');
+    assert.strictEqual(res.resource.mimeType, 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
+    var bytes = Buffer.from(res.resource.blob, 'base64');
+    assert.strictEqual(bytes.slice(0, 4).toString('latin1'), 'PK\u0003\u0004');
+    assert.ok(bytes.indexOf('ppt/slides/slide1.xml') > 0);
+    assert.ok(bytes.indexOf('<p:bg><p:bgPr><a:solidFill><a:srgbClr val="FFFFFF"/>') > 0, 'light is the default theme');
+
+    var dark = await s.call(toolCall(5, 'export_pptx', { file: 'deck', theme: 'dark' }));
+    assert.ok(Buffer.from(dark.result.content[0].resource.blob, 'base64').indexOf('<p:bg><p:bgPr><a:solidFill><a:srgbClr val="1F1E1D"/>') > 0, 'dark background');
+
+    var badTheme = await s.call(toolCall(6, 'export_pptx', { file: 'deck', theme: 'neon' }));
+    assert.strictEqual(badTheme.result.isError, true);
+    var missing = await s.call(toolCall(7, 'export_pptx', { file: 'nope' }));
+    assert.strictEqual(missing.result.isError, true);
+  } finally { s.close(); }
+});
+
 test('path traversal and bad names are rejected', async function () {
   var dir = tmp(), s = session(dir);
   try {

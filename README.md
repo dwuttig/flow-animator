@@ -20,6 +20,8 @@ Flows are stored in a SQLite database on the `flow-animator-data` volume (see "S
 
 Click **Edit** in the viewer to change the flow in the browser: title, groups, nodes and steps, with undo/redo. Every change is validated before it is shown; invalid changes are rejected. Steps support drag-and-drop reorder, **+ After**, and a **Connections** select. Use **Download** or **Copy JSON** to keep the result (the viewer cannot write to your `./flows` folder; agents can, via MCP). Steps can be edited as **Fields** or as a **Sentence** ("Client sends Submit order to API gateway as a call...", click an underlined value to change it); the toggle above the steps remembers your choice. No coordinates to set: layout stays automatic. Script access: `FlowAnimator.edit("add_node", {id:"x", label:"X"})`.
 
+**Export:** Flow menu > Export flow... offers JSON, standalone HTML, SVG, a video, and **PowerPoint slide (.pptx)**: one 16:9 slide with the Groups, Nodes, Edges and Step labels as native, editable shapes, in the viewer's current theme, orientation and spacing. Each click in the slide show plays one Beat: Packets move along the Edges, then the Trails and Step labels stay. Edges are not glued to Nodes, so moving a Node in PowerPoint leaves its Edges in place. Motion paths need desktop PowerPoint (Windows or Mac); other viewers may not animate them. The same file comes from the MCP tool `export_pptx`.
+
 ## MCP server (create and edit flows)
 
 `mcp-server.js` lets MCP-capable agents create, read, validate and edit flow files through tools instead of rewriting JSON. Every change is validated with `flow-core.js`; an invalid change is rejected and the file stays untouched. Positions are automatic, so tools never take coordinates.
@@ -28,7 +30,7 @@ Click **Edit** in the viewer to change the flow in the browser: title, groups, n
 - Local stdio: `node mcp-server.js` (database `./flows/flows.db`; `FLOW_DB` changes it), or `docker run -i --rm -v flow-animator-data:/data flow-animator-mcp node mcp-server.js` to share the compose volume.
 - Local HTTP: `node mcp-server.js --http 8081`.
 - Client config (stdio): `{"mcpServers":{"flow-animator":{"command":"node","args":["/path/to/mcp-server.js"],"env":{"FLOW_DB":"/path/to/flows.db"}}}}`. For HTTP use the URL `http://localhost:8081/mcp`.
-- Tools: `list_flows`, `list_revisions`, `read_flow` (including a revision), `validate_flow`, `create_flow`, `delete_flow`, `set_meta` (including connection), `add_group`/`update_group`/`remove_group`, `add_node`/`update_node`/`remove_node`, `add_step`/`update_step`/`remove_step`/`move_step`/`set_parallel`. Resources: `flow://schema`, `flow://guide`.
+- Tools: `list_flows`, `list_revisions`, `read_flow` (including a revision), `validate_flow`, `export_pptx` (`{ file, theme?: "light" | "dark" }`, returns the `.pptx` as an embedded resource with a base64 `blob`), `create_flow`, `delete_flow`, `set_meta` (including connection), `add_group`/`update_group`/`remove_group`, `add_node`/`update_node`/`remove_node`, `add_step`/`update_step`/`remove_step`/`move_step`/`set_parallel`. Resources: `flow://schema`, `flow://guide`.
 - Tests: `npm test` (`node --test`). Other scripts are `npm run validate`, `npm run mcp`, `npm run mcp:http`, and `npm run build:standalone`.
 - Linux note: with `FLOW_STORE=files` the container runs as a non-root user; if `./flows` is not writable by it, run `chmod a+w flows`.
 

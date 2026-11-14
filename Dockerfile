@@ -9,6 +9,8 @@ COPY flow-core.js flow-store.js mcp-server.js flow.schema.json README.md ./
 COPY src/flow-library/ ./src/flow-library/
 COPY src/flow-modeling/ ./src/flow-modeling/
 COPY src/layout/ ./src/layout/
+COPY src/distribution/ ./src/distribution/
+COPY src/playback/render-diagram/ ./src/playback/render-diagram/
 # Flows are stored in a SQLite database (FLOW_STORE=files switches back to a folder).
 # /flows is the import source for existing *.flow.json files (or the store itself with FLOW_STORE=files).
 ENV FLOW_STORE=sqlite FLOW_DB=/data/flows.db FLOW_DIR=/flows MCP_HOST=0.0.0.0 PORT=8081
@@ -34,6 +36,7 @@ COPY src/flow-library/apply-edit/apply-edit.js ./src/flow-library/apply-edit/
 COPY src/playback/dialogs/dialogs.js ./src/playback/dialogs/
 COPY src/playback/play-flow/play-flow.js ./src/playback/play-flow/
 COPY src/playback/render-diagram/render-diagram.js ./src/playback/render-diagram/
+COPY src/distribution/export-pptx/export-pptx.js ./src/distribution/export-pptx/
 COPY src/playback/view-options/view-options.js ./src/playback/view-options/
 COPY src/playback/viewer/viewer.js ./src/playback/viewer/
 COPY src/playback/edit-flow/edit-flow.js ./src/playback/edit-flow/

@@ -6,6 +6,7 @@
  *   ExportFlow.fetchStandalone(fetch, pageUrl, flowText) -> Promise<string>  (loads the viewer's own files)
  *   ExportFlow.download(doc, name, mime, content)
  * Mirrors build-standalone.js (CLI) so both produce the same bundle.
+ * fileName(title, ext): ext is 'json', 'svg', 'pptx' or anything else for '.html'.
  */
 (function (root, factory) {
   var m = factory();
@@ -26,7 +27,7 @@
 
   function fileName(title, ext) {
     var base = String(title || 'flow').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'flow';
-    return base + (ext === 'json' ? '.flow.json' : ext === 'svg' ? '.svg' : '.html');
+    return base + (ext === 'json' ? '.flow.json' : ext === 'svg' ? '.svg' : ext === 'pptx' ? '.pptx' : '.html');
   }
 
   /* pageHtml: index.html; sources: {path: text}. flowText must be valid JSON. */

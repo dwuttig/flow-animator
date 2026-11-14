@@ -15,7 +15,7 @@ A person or AI agent describes a system as a **Flow** (Nodes, Groups, ordered St
 | **Layout** | Supporting | Turn a normalized Flow into Geometry (positions, routed Edges, bounds). Pure, deterministic. | `src/layout/layout.js` |
 | **Playback** | Supporting | Show a Flow as an animation and handle user controls. Browser only. | `index.html`, `src/playback/` |
 | **Flow Library** | Supporting | Persist Flows (SQLite database, or a directory) and apply Edits safely; expose them over MCP (stdio, HTTP). | `src/flow-library/`, `flow-store.js`, `mcp-server.js` |
-| **Distribution** | Generic | Package and host: standalone bundle, CLI validator, Docker/nginx. | `build-standalone.js`, `validate.js`, `Dockerfile`, `docker/`, `docker-compose.yml` |
+| **Distribution** | Generic | Package and host: standalone bundle, CLI validator, Docker/nginx. | `src/distribution/`, `build-standalone.js`, `validate.js`, `Dockerfile`, `docker/`, `docker-compose.yml` |
 
 ### Context map
 ```
@@ -32,7 +32,7 @@ A person or AI agent describes a system as a **Flow** (Nodes, Groups, ordered St
 - **Playback → Flow Library (apply-edit, Flow API)**: editor mode reuses the pure Edit engine so Edits behave the same in the browser and over MCP. To list, load and save stored Flows Playback calls the Flow Library's HTTP API (`/api/flows`) only through its `flow-gateway` slice, as a conformist. Playback never touches the Flow store or MCP transport directly.
 - **Distribution** only wires and packages; it contains no domain rules.
 
-Dependency rule: contexts depend only on another context's public API (its `index` entry), never on internals. No cycles. Allowed edges: Layout → Modeling, Playback → Modeling/Layout, Playback → Library's pure `apply-edit` and `flow-name` (editor mode, stored names), Library → Modeling, Distribution → any public API. Modeling depends on nothing. `test/architecture.test.js` enforces this on every `require` under `src/`.
+Dependency rule: contexts depend only on another context's public API (its `index` entry), never on internals. No cycles. Allowed edges: Layout → Modeling, Playback → Modeling/Layout, Playback → Library's pure `apply-edit` and `flow-name` (editor mode, stored names), Library → Modeling, Distribution → Modeling/Layout/`render-diagram` (palette), Playback and the MCP server call Distribution's `export-pptx`. Modeling depends on nothing. `test/architecture.test.js` enforces this on every `require` under `src/`.
 
 ## Vertical slices
 Inside a context, code is organised by use case (slice), not by technical layer. A slice holds everything for one capability: its input handling, domain logic, and tests. Shared kernel inside a context is allowed only for genuinely shared domain types.
@@ -42,7 +42,7 @@ Slices in today's code:
 - Layout: `src/layout/layout.js`
 - Playback: `src/playback/play-flow/`, `render-diagram/`, `view-options/`, `dialogs/`, `flow-gateway/`, `save-flow/`, `export-flow/`, `flow-menu/`, `edit-flow/`, plus `viewer/` (boot wiring, loaded last by `index.html`)
 - Flow Library: `src/flow-library/apply-edit/`, `flow-name/`, `store-core/`, `sqlite-store/`, plus `flow-store.js` and `mcp-server.js`
-- Distribution: `build-standalone.js`, `validate.js`, `Dockerfile`, `docker/`
+- Distribution: `src/distribution/export-pptx/` (one-slide PowerPoint export), `build-standalone.js`, `validate.js`, `Dockerfile`, `docker/`
 
 Layering within a slice stays light: domain logic must not import transport (HTTP, stdio, DOM, fs). I/O sits at the slice edge.
 

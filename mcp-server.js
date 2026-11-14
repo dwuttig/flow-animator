@@ -28,6 +28,7 @@ var EventEmitter = require('events');
 var S = require('./flow-store.js');
 var Edits = require('./src/flow-library/apply-edit/apply-edit.js');
 var FlowName = require('./src/flow-library/flow-name/flow-name.js');
+var ExportPptx = require('./src/distribution/export-pptx/export-pptx.js');
 
 var PROTOCOL = '2025-03-26';
 var SUPPORTED = ['2025-03-26', '2024-11-05'];
@@ -58,6 +59,8 @@ var TOOLS = [
   { name: 'list_revisions', description: 'List the stored revisions of a flow, newest first: [{ revision, modifiedAt }]. The SQLite store keeps the last 50; a folder store only the current one.', inputSchema: obj({}) },
   { name: 'validate_flow', description: 'Validate a file, or an inline document, without writing. Returns errors (blocking), warnings and stats.',
     inputSchema: { type: 'object', properties: { file: FILE, document: { type: 'object', description: 'Inline flow document instead of a file' } }, additionalProperties: false } },
+  { name: 'export_pptx', description: 'Export a flow as a one-slide PowerPoint file (.pptx): native shapes, and one click per Beat plays the animation. Returns the file as an embedded resource (base64 blob). Uses the flow\'s own layout settings.',
+    inputSchema: obj({ theme: { type: 'string', enum: ['light', 'dark'], description: 'Colour theme of the slide (default light)' } }) },
   { name: 'create_flow', description: 'Create a flow file from a complete document (format flow-animator/1: nodes + steps, optional groups; never coordinates). Read resource flow://guide first. Fails if the file exists unless overwrite is true. Invalid documents are rejected.',
     inputSchema: obj({ document: { type: 'object' }, overwrite: { type: 'boolean' } }, ['document']) },
   { name: 'delete_flow', description: 'Delete a flow file. Requires confirm:true.', inputSchema: obj({ confirm: { type: 'boolean' } }, ['confirm']) }
@@ -69,7 +72,7 @@ var TOOLS = [
 /* Optional optimistic-concurrency parameter on every Tool that writes. */
 var REVISION = { type: 'string', description: 'Revision of the flow you last read (from list_flows, read_flow with with_revision, or a previous write). If the file changed since, the write is rejected with a conflict. Omit for last-write-wins.' };
 TOOLS.forEach(function (t) {
-  if (['read_flow', 'validate_flow', 'list_flows', 'list_revisions'].indexOf(t.name) >= 0) return;
+  if (['read_flow', 'validate_flow', 'list_flows', 'list_revisions', 'export_pptx'].indexOf(t.name) >= 0) return;
   t.inputSchema.properties.expected_revision = REVISION;
 });
 var READ_PROPS = TOOLS.filter(function (t) { return t.name === 'read_flow'; })[0].inputSchema.properties;
@@ -80,10 +83,19 @@ function preconditions(a) {
   return typeof a.expected_revision === 'string' && a.expected_revision ? { ifMatch: a.expected_revision } : {};
 }
 
+/* A Tool result that is already MCP content (not JSON text). */
+function Embedded(content) { this.content = content; }
+
 function callTool(name, a) {
   a = a || {};
   var store = getStore();
   switch (name) {
+    case 'export_pptx':
+      if (a.theme !== undefined && a.theme !== 'light' && a.theme !== 'dark') throw S.fail('"theme" must be "light" or "dark"');
+      var bytes;
+      try { bytes = ExportPptx.fromFlow(store.read(a.file), { theme: a.theme }); }
+      catch (e) { throw e.userError ? e : S.fail(e.message); }
+      return new Embedded([{ type: 'resource', resource: { uri: 'flow://' + FlowName.bare(a.file) + '.pptx', mimeType: ExportPptx.MIME, blob: Buffer.from(bytes).toString('base64') } }]);
     case 'list_flows': return { flows: store.list() };
     case 'read_flow':
       if (a.revision !== undefined || a.with_revision) {
@@ -148,7 +160,9 @@ function handle(msg) {
       case 'tools/call':
         try {
           var out = callTool(p.name, p.arguments);
-          result = { content: [{ type: 'text', text: JSON.stringify(out, null, 2) }], isError: !!(out && out.ok === false) };
+          result = out instanceof Embedded
+            ? { content: out.content, isError: false }
+            : { content: [{ type: 'text', text: JSON.stringify(out, null, 2) }], isError: !!(out && out.ok === false) };
         } catch (e) {
           if (!e.userError) throw e;
           result = { content: [{ type: 'text', text: e.message }], isError: true };
