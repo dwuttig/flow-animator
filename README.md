@@ -11,7 +11,7 @@ No install, no dependencies, no build step. Node is only needed for the optional
 ## Docker
 
 ```
-docker compose up --build   # viewer at http://localhost:8080
+docker compose up --build   # viewer at http://localhost:3030
 ```
 
 Flows are stored in a SQLite database on the `flow-animator-data` volume (see "Storing and loading flows"). Existing `*.flow.json` files in `./flows` are imported once when the database is first created.

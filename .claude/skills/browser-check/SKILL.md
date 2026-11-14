@@ -8,7 +8,7 @@ description: Verify the flow-animator viewer (index.html) in a real browser: loa
 The viewer is plain static files with no build. Serve the repo root (so relative scripts and `examples/` load) and drive it with the available browser tools (built-in browser `mcp__Claude_Browser__*`, or Playwright).
 
 ## Steps
-1. Serve: `python -m http.server 8000` from the repo root (or `npx`-free equivalent), or use Docker (`docker-smoke-test` skill) at `http://localhost:8080`. `/api/flows` exists only with the MCP server behind nginx (Docker); without it the viewer is read-only, which is itself a case to check.
+1. Serve: `python -m http.server 8000` from the repo root (or `npx`-free equivalent), or use Docker (`docker-smoke-test` skill) at `http://localhost:3030`. `/api/flows` exists only with the MCP server behind nginx (Docker); without it the viewer is read-only, which is itself a case to check.
 2. Open the page and check the console for errors before doing anything.
 3. Load `examples/order-flow.flow.json` (file input, or `/?flow=<name>` when the API is available). Expect title, diagram, legend (2+ groups) and no validation errors.
 4. Controls: Play, Pause, step forward/back, scrub the timeline, change speed. The packet moves along arrows, the step `detail` and `payload` text updates, and the trail of completed steps shows.

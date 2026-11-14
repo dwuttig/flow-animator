@@ -31,7 +31,7 @@ Only when the MCP server is not connected.
 3. Walk through the scenario in time order; each arrow becomes one `steps` entry with a verb-first `label`. Add `payload` for what is sent and `detail` for one or two sentences. Replies are separate steps with `kind: "response"`; async hops use `kind: "async"` or `"event"`; parallel fan-out uses `together: true` on the following steps.
 
 ## Tell the user how to view it
-- Docker: `docker compose up --build`, then `http://localhost:8080/?flow=<topic>` (add `&watch=1` to follow changes).
+- Docker: `docker compose up --build`, then `http://localhost:3030/?flow=<topic>` (add `&watch=1` to follow changes).
 - Without Docker: open `index.html` and load the file, or `node build-standalone.js` for a single HTML file.
 
 Fix the flow, never `flow-core.js` or the schema, to make validation pass.

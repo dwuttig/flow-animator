@@ -96,7 +96,7 @@ It never validates Flows itself: it relies on Flow Modeling in the browser (`flo
 - The MCP port stays bound to `127.0.0.1` on the host. Anything beyond a trusted network needs `MCP_TOKEN` and TLS in front, as today.
 
 ### Sharing
-- Link: `http://host:8080/?flow=orders.flow.json` (needs the server).
+- Link: `http://host:3030/?flow=orders.flow.json` (needs the server).
 - Portable copy: the standalone bundle from `build-standalone.js`, or "Download". No new feature beyond making the link easy to copy (a "Copy link" action in the picker).
 
 ## Domain language

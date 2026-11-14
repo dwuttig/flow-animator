@@ -7,7 +7,7 @@
 The viewer must be hosted somewhere reproducible. Opening `index.html` from disk blocks `fetch()` of flow files, and a later MCP server needs a place to write flows that the viewer can read.
 
 ## Goals
-- `docker compose up` serves the viewer on http://localhost:8080.
+- `docker compose up` serves the viewer on http://localhost:3030.
 - Flow files in `./flows` are served at `/flows/<name>.flow.json` and appear without rebuilding.
 - Leave room for an MCP server container that shares the flows volume.
 
